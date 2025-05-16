@@ -1,0 +1,90 @@
+.container {
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+.progressBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2rem;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.stepNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background-color: #f3f4f6;
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.step.active .stepNumber {
+  background-color: #0a3b6e;
+  color: white;
+}
+
+.step.completed .stepNumber {
+  background-color: #10b981;
+  color: white;
+}
+
+.stepTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.step.active .stepTitle {
+  color: #0a3b6e;
+}
+
+.step.completed .stepTitle {
+  color: #10b981;
+}
+
+.stepLine {
+  flex: 1;
+  height: 2px;
+  background-color: #e5e7eb;
+  margin: 0 1rem;
+  position: relative;
+  top: -1rem;
+}
+
+.stepLine.completed {
+  background-color: #10b981;
+}
+
+@media (max-width: 768px) {
+  .progressBar {
+    padding: 1rem;
+    overflow-x: auto;
+  }
+
+  .step {
+    min-width: 6rem;
+  }
+
+  .stepTitle {
+    font-size: 0.75rem;
+  }
+} 
