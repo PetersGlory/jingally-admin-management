@@ -135,6 +135,10 @@ export default function PackageDimension({ onNext, onBack, onUpdate, initialData
     e.preventDefault();
     if (!validateForm()) return;
 
+    if(parseFloat(formData.weight) > 40) {
+      alert('Weight cannot exceed 40kg');
+      return;
+    }
     try {
       setIsLoading(true);
       setErrors({});
