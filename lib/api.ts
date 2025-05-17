@@ -14,6 +14,10 @@ export const generalApi = axios.create({
     baseURL: 'https://jingally-server.onrender.com/api',
 });
 
+export const bookingApi = axios.create({
+    baseURL: 'https://jingally-server.onrender.com/api/booking',
+});
+
 export const login = async (email: string, password: string) => {
     const response = await authApi.post('/login', { email, password });
     return response.data;

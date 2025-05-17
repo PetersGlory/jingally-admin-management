@@ -1,5 +1,7 @@
 
-import { generalApi } from './api';
+import { bookingApi } from './api';
+
+const generalApi = bookingApi
 
 export const createShipment = async (shippingData: any, token: string) => {
   const response = await generalApi.post('/shipments', shippingData, {

@@ -70,11 +70,12 @@ const mainNavItems: NavItem[] = [
     href: "/dashboard/tracking",
     icon: <Truck className="h-5 w-5" />,
   },
-  // {
-  //   title: "Admin",
-  //   href: "/dashboard/admin",
-  //   icon: <Users className="h-5 w-5" />,
-  // },
+  {
+    title: "Manual Shipments",
+    href: "/dashboard/shipments/manual",
+    icon: <Package className="h-5 w-5" />,
+  },
+
   // {
   //   title: "Support",
   //   href: "/dashboard/support",
