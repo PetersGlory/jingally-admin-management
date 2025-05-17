@@ -75,6 +75,7 @@ export default function PackageDelivery({ onNext, onBack, onUpdate, initialData 
   const [deliveryMode, setDeliveryMode] = useState<'home' | 'park'>('home');
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [disabled, setDisabled] = useState(false);
   const [formErrors, setFormErrors] = useState<Partial<DeliveryForm>>({});
 
   const [form, setForm] = useState<DeliveryForm>({
@@ -398,6 +399,8 @@ export default function PackageDelivery({ onNext, onBack, onUpdate, initialData 
           </div>
           <div className={styles.deliveryModeButtons}>
             <button
+              type="button"
+              disabled={disabled}
               className={`${styles.modeButton} ${deliveryMode === 'home' ? styles.active : ''}`}
               onClick={() => {
                 setDeliveryMode('home');
@@ -420,9 +423,11 @@ export default function PackageDelivery({ onNext, onBack, onUpdate, initialData 
               Pick Up
             </button>
             <button
+              type="button"
               className={`${styles.modeButton} ${deliveryMode === 'park' ? styles.active : ''}`}
               onClick={() => {
                 setDeliveryMode('park');
+                setDisabled(true);
                 setForm(prev => ({
                   ...prev,
                   deliveryAddress: DEFAULT_PARK_ADDRESS
