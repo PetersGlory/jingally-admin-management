@@ -47,14 +47,14 @@ const countryCodes: CountryCode[] = [
 ];
 
 const DEFAULT_PARK_ADDRESS = {
-  street: 'Park Delivery Point',
-  city: 'London',
-  state: 'Greater London',
+  street: '1072 Tyburn Road',
+  city: 'Birmingham',
+  state: 'West Midlands',
   country: 'United Kingdom',
-  postcode: 'SW1A 1AA',
-  latitude: 51.5074,
-  longitude: -0.1278,
-  placeId: 'park_delivery_point',
+  postcode: 'B24 0SY',
+  latitude: 52.5200,
+  longitude: -1.8904,
+  placeId: 'uk_office_address',
   type: 'business' as const
 };
 
