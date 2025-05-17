@@ -177,10 +177,15 @@ export default function ManualShipmentPage() {
     }
   }
 
-  // Filter shipments based on search query
-  const filteredShipments = shipments.filter((shipment) =>
-    shipment.trackingNumber.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  // Filter shipments based on search query and active tab
+  const filteredShipments = shipments.filter((shipment) => {
+    const matchesSearch =
+      shipment.trackingNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shipment.pickupAddress?.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shipment.deliveryAddress?.city.toLowerCase().includes(searchQuery.toLowerCase())
+
+    return matchesSearch
+  })
 
   // Get status badge variant
   const getStatusBadge = (status: string) => {

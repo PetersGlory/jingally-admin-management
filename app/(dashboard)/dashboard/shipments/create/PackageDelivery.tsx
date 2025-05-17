@@ -46,6 +46,18 @@ const countryCodes: CountryCode[] = [
   { code: 'GM', name: 'Gambia', flag: '🇬🇲', dial_code: '+220' },
 ];
 
+const DEFAULT_PARK_ADDRESS = {
+  street: 'Park Delivery Point',
+  city: 'London',
+  state: 'Greater London',
+  country: 'United Kingdom',
+  postcode: 'SW1A 1AA',
+  latitude: 51.5074,
+  longitude: -0.1278,
+  placeId: 'park_delivery_point',
+  type: 'business' as const
+};
+
 interface PackageDeliveryProps {
   onNext: () => void;
   onBack: () => void;
@@ -387,15 +399,34 @@ export default function PackageDelivery({ onNext, onBack, onUpdate, initialData 
           <div className={styles.deliveryModeButtons}>
             <button
               className={`${styles.modeButton} ${deliveryMode === 'home' ? styles.active : ''}`}
-              onClick={() => setDeliveryMode('home')}
+              onClick={() => {
+                setDeliveryMode('home');
+                setForm(prev => ({
+                  ...prev,
+                  deliveryAddress: {
+                    street: '',
+                    city: '',
+                    state: '',
+                    country: '',
+                    postcode: '',
+                    latitude: 0,
+                    longitude: 0,
+                    placeId: '',
+                    type: 'residential'
+                  }
+                }));
+              }}
             >
               Home
             </button>
             <button
               className={`${styles.modeButton} ${deliveryMode === 'park' ? styles.active : ''}`}
               onClick={() => {
-                alert('Park delivery is not available yet');
-                setDeliveryMode('home');
+                setDeliveryMode('park');
+                setForm(prev => ({
+                  ...prev,
+                  deliveryAddress: DEFAULT_PARK_ADDRESS
+                }));
               }}
             >
               Park
@@ -412,13 +443,40 @@ export default function PackageDelivery({ onNext, onBack, onUpdate, initialData 
           'pickup'
         )}
 
-        {/* Delivery Address Form */}
-        {renderAddressForm(
+        {/* Delivery Address Form - Only show for home delivery */}
+        {deliveryMode === 'home' && renderAddressForm(
           'Delivery Address',
           <MapPin size={20} />,
           form.deliveryAddress,
           (address) => setForm({ ...form, deliveryAddress: address }),
           'delivery'
+        )}
+
+        {/* Show park delivery info when park mode is selected */}
+        {deliveryMode === 'park' && (
+          <div className={styles.section}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.iconContainer}>
+                <MapPin size={20} />
+              </div>
+              <h2 className={styles.sectionTitle}>Park Delivery Point</h2>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm text-gray-600">
+                Your package will be delivered to our designated park delivery point. 
+                You will be notified when your package arrives and can collect it at your convenience.
+              </p>
+              <div className="mt-4 p-3 bg-white rounded-md border border-gray-200">
+                <p className="text-sm font-medium text-gray-900">{DEFAULT_PARK_ADDRESS.street}</p>
+                <p className="text-sm text-gray-600">
+                  {DEFAULT_PARK_ADDRESS.city}, {DEFAULT_PARK_ADDRESS.state}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {DEFAULT_PARK_ADDRESS.country} {DEFAULT_PARK_ADDRESS.postcode}
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Receiver Details */}

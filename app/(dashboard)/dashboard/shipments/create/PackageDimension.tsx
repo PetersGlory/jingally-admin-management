@@ -39,12 +39,12 @@ const DimensionInput: React.FC<{
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numericValue = e.target.value.replace(/[^0-9.]/g, '');
     const finalValue = numericValue.replace(/(\..*)\./g, '$1');
-    if(label === "Weight"){
-      if (parseFloat(numericValue) > 40) {
-        alert('Weight cannot exceed 40kg');
-        return;
-      }
-    }
+    // if(label === "Weight"){
+    //   if (parseFloat(numericValue) > 40) {
+    //     alert('Weight cannot exceed 40kg');
+    //     return;
+    //   }
+    // }
     onChange(finalValue);
   };
 
@@ -87,7 +87,7 @@ export default function PackageDimension({ onNext, onBack, onUpdate, initialData
   const [formData, setFormData] = useState<PackageDimensions>({
     weight: initialData?.weight || '',
     length: initialData?.length || '',
-    width: initialData?.width || '',
+    width: initialData?.width || initialData?.weight || '',
     height: initialData?.height || '',
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -113,7 +113,15 @@ export default function PackageDimension({ onNext, onBack, onUpdate, initialData
   }, [formData]);
 
   const handleInputChange = (field: keyof PackageDimensions, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    if(field === "weight"){
+      setFormData({
+        ...formData,
+        weight: value,
+        width: value,
+      });
+    }else{
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
     setErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[field];
@@ -135,10 +143,10 @@ export default function PackageDimension({ onNext, onBack, onUpdate, initialData
     e.preventDefault();
     if (!validateForm()) return;
 
-    if(parseFloat(formData.weight) > 40) {
-      alert('Weight cannot exceed 40kg');
-      return;
-    }
+    // if (parseFloat(formData.weight) > 40) {
+    //   alert('Weight cannot exceed 40kg');
+    //   return;
+    // }
     try {
       setIsLoading(true);
       setErrors({});
@@ -234,14 +242,14 @@ export default function PackageDimension({ onNext, onBack, onUpdate, initialData
                 placeholder="Enter length"
               />
 
-              <DimensionInput
+              {/* <DimensionInput
                 label="Width"
                 value={formData.width}
                 onChange={(value) => handleInputChange('width', value)}
                 error={errors.width}
                 icon={<Maximize2 size={20} />}
                 placeholder="Enter width"
-              />
+              /> */}
 
               <DimensionInput
                 label="Height"
