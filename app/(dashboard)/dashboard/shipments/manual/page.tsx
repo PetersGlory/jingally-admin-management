@@ -735,11 +735,11 @@ export default function ManualShipmentPage() {
               </Table>
             </div>
 
-            {selectedShipment && (
+            {/* {selectedShipment && (
               <div className="mt-8">
                 <PackagePayment onNext={handleNext} onBack={handleBack} />
               </div>
-            )}
+            )} */}
 
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-muted-foreground">
