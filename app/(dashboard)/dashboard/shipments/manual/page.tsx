@@ -724,7 +724,7 @@ export default function ManualShipmentPage() {
                               onClick={() => handleProcessPayment(shipment)}
                             >
                               <Receipt className="mr-2 h-4 w-4" />
-                              Process Payment
+                              Download Invoice
                             </Button>
                           </div>
                         </TableCell>
