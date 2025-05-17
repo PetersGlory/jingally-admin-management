@@ -431,6 +431,43 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
     }
   }, [costs, shipment, token, router]);
 
+  const handleSchedulePay = async() =>{
+    try {
+      setIsLoading(true);
+      const amount = parseFloat(costs.find(c => c.type === 'total')?.amount.replace('£', '') || '0');
+      
+      const paymentDetails = {
+        method: 'paypal',
+        amount,
+        paymentStatus: 'pending',
+        currency: 'GBP'
+      };
+
+      const paymentResponse = await updatePaymentStatus(
+        shipment?.id || '',
+        paymentDetails,
+        token
+      );
+
+      if (paymentResponse.success) {
+        localStorage.setItem('packageInfo', JSON.stringify(paymentResponse.data));
+        setShowSuccessModal(true);
+        
+        setTimeout(() => {
+          setShowSuccessModal(false);
+          router.replace("/dashboard/shipments/manual");
+        }, 2000);
+      } else {
+        setError(paymentResponse.message || 'Payment failed');
+      }
+    } catch (error: any) {
+      setError(error.message || 'Payment failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+      setShowBankModal(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -579,7 +616,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
           </div>
 
           {/* Payment Methods */}
-          <div className={styles.paymentSection}>
+          {/* <div className={styles.paymentSection}>
             <h2 className={styles.sectionTitle}>Select Payment Method</h2>
             <div className={styles.paymentMethods}>
               {paymentMethods.map((method) => {
@@ -615,7 +652,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
                 );
               })}
             </div>
-          </div>
+          </div> */}
 
           {/* Security Note */}
           <div className={styles.securityNote}>
@@ -632,8 +669,8 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
         <footer className={styles.footer}>
           <button
             className={`${styles.payButton} ${selectedMethod && !isLoading ? styles.active : ''}`}
-            disabled={!selectedMethod || isLoading}
-            onClick={handlePayment}
+            disabled={isLoading}
+            onClick={handleSchedulePay}
           >
             {isLoading ? (
               <div className="flex items-center justify-center gap-2">
@@ -641,9 +678,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
                 Processing...
               </div>
             ) : (
-              selectedMethod === 'paypal' ? 'Pay with PayPal' : 
-              selectedMethod ? `Pay ${costs.find(c => c.type === 'total')?.amount}` : 
-              'Select Payment Method'
+              'Schedule Payment Method'
             )}
           </button>
         </footer>

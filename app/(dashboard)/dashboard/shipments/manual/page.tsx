@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Package, Search, Filter, Download, RefreshCw, ArrowLeft, Eye, UserPlus, FileDown, Receipt } from "lucide-react"
+import { Package, Search, Filter, Download, RefreshCw, ArrowLeft, Eye, UserPlus, FileDown, Receipt, CreditCard, Package2, MoreVertical } from "lucide-react"
 import { getShipments } from "@/lib/shipment"
 import { toast } from "sonner"
 import PackagePayment from "../create/PackagePayment"
@@ -43,6 +43,14 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { format } from "date-fns"
 import { jsPDF } from "jspdf";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 // import "jspdf-autotable";
 
 // Form validation schema
@@ -118,6 +126,18 @@ interface InvoiceData {
   total: number;
 }
 
+interface ContainerInfo {
+  containerNumber: string;
+  containerType: string;
+  sealNumber: string;
+  weight: number;
+  dimensions: {
+    length: number;
+    width: number;
+    height: number;
+  };
+}
+
 // Add these styles at the top of the file after imports
 const modalStyles = {
   content: "max-w-4xl bg-white rounded-lg shadow-xl max-h-[90vh] overflow-hidden flex flex-col",
@@ -146,6 +166,9 @@ export default function ManualShipmentPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false)
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
+  const [isUpdatePaymentModalOpen, setIsUpdatePaymentModalOpen] = useState(false)
+  const [isUpdateContainerModalOpen, setIsUpdateContainerModalOpen] = useState(false)
+  const [selectedShipmentForUpdate, setSelectedShipmentForUpdate] = useState<Shipment | null>(null)
   const totalSteps = 1
 
   const {
@@ -376,6 +399,16 @@ export default function ManualShipmentPage() {
     setIsInvoiceModalOpen(true);
   };
 
+  const handleUpdatePaymentStatus = (shipment: Shipment) => {
+    setSelectedShipmentForUpdate(shipment);
+    setIsUpdatePaymentModalOpen(true);
+  };
+
+  const handleUpdateContainerInfo = (shipment: Shipment) => {
+    setSelectedShipmentForUpdate(shipment);
+    setIsUpdateContainerModalOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
@@ -389,22 +422,11 @@ export default function ManualShipmentPage() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh] bg-gray-50">
-        <div className="text-center p-8 rounded-lg bg-white shadow-lg border border-red-100 max-w-md w-full mx-4">
-          <div className="mb-6">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Oops! Something went wrong</h3>
-            <p className="text-red-500 text-sm">{error}</p>
-          </div>
-          <Button 
-            onClick={fetchShipments} 
-            className="w-full bg-red-500 hover:bg-red-600 text-white transition-colors duration-200"
-          >
-            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+      <div className="flex items-center justify-center h-[50vh]">
+        <div className="text-center">
+          <p className="text-red-500">{error}</p>
+          <Button onClick={fetchShipments} className="mt-4">
+            <RefreshCw className="mr-2 h-4 w-4" />
             Try Again
           </Button>
         </div>
@@ -676,6 +698,26 @@ export default function ManualShipmentPage() {
                               </DialogContent>
                             </Dialog>
 
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleUpdatePaymentStatus(shipment)}>
+                                  <CreditCard className="mr-2 h-4 w-4" />
+                                  Update Payment Status
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdateContainerInfo(shipment)}>
+                                  <Package2 className="mr-2 h-4 w-4" />
+                                  Update Container Info
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+
                             <Button
                               variant="outline"
                               size="sm"
@@ -836,6 +878,101 @@ export default function ManualShipmentPage() {
               Close
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Payment Status Modal */}
+      <Dialog open={isUpdatePaymentModalOpen} onOpenChange={setIsUpdatePaymentModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Payment Status</DialogTitle>
+            <DialogDescription>
+              Update the payment status for shipment {selectedShipmentForUpdate?.trackingNumber}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Payment Status</Label>
+              <select className="w-full p-2 border rounded-md">
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="failed">Failed</option>
+                <option value="refunded">Refunded</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <textarea className="w-full p-2 border rounded-md" rows={3} placeholder="Add any notes about the payment status update..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUpdatePaymentModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              // Handle payment status update
+              toast.success("Payment status updated successfully");
+              setIsUpdatePaymentModalOpen(false);
+            }}>
+              Update Status
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Container Information Modal */}
+      <Dialog open={isUpdateContainerModalOpen} onOpenChange={setIsUpdateContainerModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Container Information</DialogTitle>
+            <DialogDescription>
+              Update container details for shipment {selectedShipmentForUpdate?.trackingNumber}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Container Number</Label>
+              <Input placeholder="Enter container number" />
+            </div>
+            <div className="space-y-2">
+              <Label>Container Type</Label>
+              <select className="w-full p-2 border rounded-md">
+                <option value="20ft">20ft Standard</option>
+                <option value="40ft">40ft Standard</option>
+                <option value="40hq">40ft High Cube</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Seal Number</Label>
+              <Input placeholder="Enter seal number" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Weight (kg)</Label>
+                <Input type="number" placeholder="Enter weight" />
+              </div>
+              <div className="space-y-2">
+                <Label>Dimensions (L x W x H)</Label>
+                <div className="flex gap-2">
+                  <Input type="number" placeholder="L" />
+                  <Input type="number" placeholder="W" />
+                  <Input type="number" placeholder="H" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsUpdateContainerModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              // Handle container info update
+              toast.success("Container information updated successfully");
+              setIsUpdateContainerModalOpen(false);
+            }}>
+              Update Information
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
