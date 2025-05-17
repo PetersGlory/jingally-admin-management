@@ -417,7 +417,7 @@ export default function PackageDelivery({ onNext, onBack, onUpdate, initialData 
                 }));
               }}
             >
-              Home
+              Pick Up
             </button>
             <button
               className={`${styles.modeButton} ${deliveryMode === 'park' ? styles.active : ''}`}
@@ -429,7 +429,7 @@ export default function PackageDelivery({ onNext, onBack, onUpdate, initialData 
                 }));
               }}
             >
-              Park
+              Drop Off
             </button>
           </div>
         </div>

@@ -181,9 +181,9 @@ export default function CreateShipmentPage() {
               onBack={handlePreviousStep}
               onUpdate={handleUpdateData}
               initialData={formData} onSelectType={function (type: string): void {
-                  throw new Error('Function not implemented.');
+                  console.log('Function not implemented.');
               } } handleNextStep={function (): void {
-                  throw new Error('Function not implemented.');
+                  console.log('Function not implemented.');
               } }      />
     </div>
   );

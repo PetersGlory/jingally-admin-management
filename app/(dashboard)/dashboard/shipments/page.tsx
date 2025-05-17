@@ -337,16 +337,7 @@ export default function ShipmentsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Shipment Management</h1>
-        <Button asChild>
-          <Link href="/dashboard/shipments/create" onClick={() => {
-            localStorage.removeItem('packageInfo');
-            localStorage.removeItem('currentStep');
-            localStorage.removeItem('shipmentCreationStep');
-          }}>
-            <Package className="mr-2 h-4 w-4" />
-            Create Shipment
-          </Link>
-        </Button>
+        
       </div>
 
       <Card>

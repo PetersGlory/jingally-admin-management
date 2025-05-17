@@ -87,7 +87,7 @@ export const getShipmentDetails = async (packageId: string, token: string) => {
 
 // Update Package Dimensions
 export const updatePackageDimensions = async (packageId: string, dimensions: any, token: string) => {
-  const response = await generalApi.patch(`/shipments/${packageId}/package-dimensions`, dimensions, {
+  const response = await generalApi.put(`/shipments/${packageId}/dimensions`, dimensions, {
     headers: {
       Authorization: `Bearer ${token}`, 
     },
@@ -97,7 +97,7 @@ export const updatePackageDimensions = async (packageId: string, dimensions: any
 
 // Update Shipment Photos
 export const updateShipmentPhotos = async (packageId: string, photos: any, token: string) => {
-  const response = await generalApi.patch(`/shipments/${packageId}/photos`, photos, {
+  const response = await generalApi.put(`/shipments/${packageId}/photos`, photos, {
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'multipart/form-data',
@@ -108,7 +108,7 @@ export const updateShipmentPhotos = async (packageId: string, photos: any, token
 
 // Update Delivery Address
 export const updateDeliveryAddress = async (packageId: string, address: any, token: string) => {
-  const response = await generalApi.patch(`/shipments/${packageId}/delivery-address`, address, {
+  const response = await generalApi.put(`/shipments/${packageId}/delivery-address`, address, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -118,7 +118,7 @@ export const updateDeliveryAddress = async (packageId: string, address: any, tok
 
 // Update Payment Status
 export const updatePaymentStatus = async (packageId: string, status: any, token: string) => {
-  const response = await generalApi.patch(`/shipments/${packageId}/payment-status`, status, {
+  const response = await generalApi.put(`/shipments/${packageId}/payment`, status, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -128,7 +128,7 @@ export const updatePaymentStatus = async (packageId: string, status: any, token:
 
 // Update Pickup Date/Time
 export const updatePickupDateTime = async (packageId: string, dateTime: any, token: string) => {
-  const response = await generalApi.patch(`/shipments/${packageId}/pickup-date-time`, dateTime, {
+  const response = await generalApi.put(`/shipments/${packageId}/pickup-time`, dateTime, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

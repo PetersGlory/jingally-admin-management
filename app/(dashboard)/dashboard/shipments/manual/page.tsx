@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Package, Search, Filter, Download, RefreshCw, ArrowLeft, Eye, UserPlus } from "lucide-react"
+import { Package, Search, Filter, Download, RefreshCw, ArrowLeft, Eye, UserPlus, FileDown, Receipt } from "lucide-react"
 import { getShipments } from "@/lib/shipment"
 import { toast } from "sonner"
 import PackagePayment from "../create/PackagePayment"
@@ -40,6 +40,8 @@ import { Label } from "@/components/ui/label"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import Link from "next/link"
+import { format } from "date-fns"
 
 // Form validation schema
 const userInfoSchema = z.object({
@@ -94,6 +96,25 @@ interface Shipment {
   updatedAt: string
 }
 
+interface InvoiceData {
+  invoiceNumber: string;
+  date: string;
+  dueDate: string;
+  customerInfo: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  items: {
+    description: string;
+    quantity: number;
+    price: number;
+  }[];
+  subtotal: number;
+  tax: number;
+  total: number;
+}
+
 // Add these styles at the top of the file after imports
 const modalStyles = {
   content: "max-w-4xl bg-white rounded-lg shadow-xl max-h-[90vh] overflow-hidden flex flex-col",
@@ -121,6 +142,7 @@ export default function ManualShipmentPage() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false)
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false)
   const totalSteps = 1
 
   const {
@@ -227,6 +249,119 @@ export default function ManualShipmentPage() {
     }
   }
 
+  const generateInvoiceNumber = () => {
+    const date = new Date();
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `INV-${year}${month}-${random}`;
+  };
+
+  const generateInvoicePDF = (invoiceData: InvoiceData) => {
+    // Create a new window for the invoice
+    const invoiceWindow = window.open('', '_blank');
+    if (!invoiceWindow) return;
+
+    // Generate the invoice HTML
+    const invoiceHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Invoice ${invoiceData.invoiceNumber}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .invoice-details { margin-bottom: 30px; }
+          .customer-info { margin-bottom: 30px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+          th { background-color: #f5f5f5; }
+          .totals { text-align: right; }
+          .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>INVOICE</h1>
+          <p>Invoice Number: ${invoiceData.invoiceNumber}</p>
+        </div>
+        
+        <div class="invoice-details">
+          <p>Date: ${invoiceData.date}</p>
+          <p>Due Date: ${invoiceData.dueDate}</p>
+        </div>
+
+        <div class="customer-info">
+          <h3>Customer Information</h3>
+          <p>Name: ${invoiceData.customerInfo.name}</p>
+          <p>Email: ${invoiceData.customerInfo.email}</p>
+          <p>Phone: ${invoiceData.customerInfo.phone}</p>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Quantity</th>
+              <th>Price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${invoiceData.items.map(item => `
+              <tr>
+                <td>${item.description}</td>
+                <td>${item.quantity}</td>
+                <td>£${item.price.toFixed(2)}</td>
+                <td>£${(item.quantity * item.price).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <p>Subtotal: £${invoiceData.subtotal.toFixed(2)}</p>
+          <p>Tax (20%): £${invoiceData.tax.toFixed(2)}</p>
+          <h3>Total: £${invoiceData.total.toFixed(2)}</h3>
+        </div>
+
+        <div class="footer">
+          <p>Thank you for your business!</p>
+          <p>This is a computer-generated invoice, no signature required.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Write the HTML to the new window
+    invoiceWindow.document.write(invoiceHTML);
+    invoiceWindow.document.close();
+  };
+
+  const handleProcessPayment = (shipment: Shipment) => {
+    const invoiceData: InvoiceData = {
+      invoiceNumber: generateInvoiceNumber(),
+      date: format(new Date(), 'dd/MM/yyyy'),
+      dueDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'dd/MM/yyyy'),
+      customerInfo: {
+        name: shipment.receiverName || 'N/A',
+        email: shipment.receiverEmail || 'N/A',
+        phone: shipment.receiverPhoneNumber || 'N/A',
+      },
+      items: [{
+        description: `Shipment ${shipment.trackingNumber}`,
+        quantity: 1,
+        price: parseFloat(shipment.price || '0'),
+      }],
+      subtotal: parseFloat(shipment.price || '0'),
+      tax: parseFloat(shipment.price || '0') * 0.2,
+      total: parseFloat(shipment.price || '0') * 1.2,
+    };
+
+    generateInvoicePDF(invoiceData);
+    setIsInvoiceModalOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
@@ -266,6 +401,16 @@ export default function ManualShipmentPage() {
           </Button>
           <h1 className="text-3xl font-bold tracking-tight">Manual Shipment Payment</h1>
         </div>
+        <Button asChild>
+          <Link href="/dashboard/shipments/create" onClick={() => {
+            localStorage.removeItem('packageInfo');
+            localStorage.removeItem('currentStep');
+            localStorage.removeItem('shipmentCreationStep');
+          }}>
+            <Package className="mr-2 h-4 w-4" />
+            Create Shipment
+          </Link>
+        </Button>
       </div>
 
       <Card>
@@ -509,9 +654,9 @@ export default function ManualShipmentPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => setSelectedShipment(shipment)}
+                              onClick={() => handleProcessPayment(shipment)}
                             >
-                              <Package className="mr-2 h-4 w-4" />
+                              <Receipt className="mr-2 h-4 w-4" />
                               Process Payment
                             </Button>
                           </div>
@@ -646,6 +791,34 @@ export default function ManualShipmentPage() {
                 </Button>
               </DialogFooter>
             </form>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isInvoiceModalOpen} onOpenChange={setIsInvoiceModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Invoice Generated</DialogTitle>
+            <DialogDescription>
+              Your invoice has been generated and opened in a new window. You can print or save it as PDF.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsInvoiceModalOpen(false)}
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                window.print();
+                setIsInvoiceModalOpen(false);
+              }}
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -60,6 +60,7 @@ interface Shipment {
     country: string;
     postcode: string;
   };
+  deliveryType: string;
   scheduledPickupTime: string;
   estimatedDeliveryTime: string;
   receiverName: string;
@@ -417,7 +418,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
         
         setTimeout(() => {
           setShowSuccessModal(false);
-          router.replace("/dashboard/shipments");
+          router.replace("/dashboard/shipments/manual");
         }, 2000);
       } else {
         setError(paymentResponse.message || 'Payment failed');
