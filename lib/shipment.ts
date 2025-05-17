@@ -156,3 +156,12 @@ export const trackingShipment = async (trackingNumber: string, token: string) =>
   });
   return response.data;
 };
+
+export const assignContainerToShipment = async (shipmentId: string, containerId: string, token: string) => {  
+  const response = await generalApi.put(`/shipments/${shipmentId}/container`, { containerId }, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return response.data;
+};

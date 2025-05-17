@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Package, Search, Filter, Download, RefreshCw, ArrowLeft, Eye, UserPlus, FileDown, Receipt, CreditCard, Package2, MoreVertical } from "lucide-react"
+import { Package, Search, Filter, Download, RefreshCw, ArrowLeft, Eye, UserPlus, FileDown, Receipt, CreditCard, Package2, MoreVertical, AlertCircle } from "lucide-react"
 import { getShipments } from "@/lib/shipment"
 import { toast } from "sonner"
 import PackagePayment from "../create/PackagePayment"
@@ -51,6 +51,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { getContainers } from "@/lib/api"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 // import "jspdf-autotable";
 
 // Form validation schema
@@ -62,39 +70,51 @@ const userInfoSchema = z.object({
 
 type UserInfoFormData = z.infer<typeof userInfoSchema>
 
+interface Address {
+  id?: string
+  city: string
+  type: string
+  unit: string | null
+  state: string
+  street: string
+  country: string
+  zipCode: string | null
+  latitude: string | number
+  longitude: string | number
+  isVerified?: boolean
+  verificationDetails?: any
+}
+
+interface Dimensions {
+  width: number
+  height: number
+  length: number
+}
+
+interface User {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+}
+
 interface Shipment {
   id: string
-  trackingNumber: string
+  userId: string
   status: string
   packageType: string | null
   serviceType: string | null
   packageDescription: string | null
   fragile: boolean | null
   weight: number | null
-  dimensions: {
-    width: number
-    height: number
-    length: number
-  } | null
-  pickupAddress: {
-    city: string
-    type: string
-    state: string
-    street: string
-    country: string
-    postcode: string
-  } | null
-  deliveryAddress: {
-    city: string
-    type: string
-    state: string
-    street: string
-    country: string
-    postcode: string
-  } | null
-  deliveryType: string
+  dimensions: Dimensions | null
+  pickupAddress: Address | null
+  deliveryAddress: Address | null
+  deliveryType: string | null
   scheduledPickupTime: string | null
   estimatedDeliveryTime: string | null
+  trackingNumber: string
   receiverName: string | null
   receiverPhoneNumber: string | null
   receiverEmail: string | null
@@ -105,6 +125,10 @@ interface Shipment {
   images: string[]
   createdAt: string
   updatedAt: string
+  user: User
+  driver: User | null
+  container: Container | null
+  paymentMethod: string | null
 }
 
 interface InvoiceData {
@@ -136,6 +160,13 @@ interface ContainerInfo {
     width: number;
     height: number;
   };
+}
+
+interface Container {
+  id: string
+  containerNumber: string
+  type: string
+  capacity: number
 }
 
 // Add these styles at the top of the file after imports
@@ -170,6 +201,19 @@ export default function ManualShipmentPage() {
   const [isUpdateContainerModalOpen, setIsUpdateContainerModalOpen] = useState(false)
   const [selectedShipmentForUpdate, setSelectedShipmentForUpdate] = useState<Shipment | null>(null)
   const totalSteps = 1
+  const [containers, setContainers] = useState<Container[]>([])
+  const [isAssigningContainer, setIsAssigningContainer] = useState(false)
+  const [selectedContainer, setSelectedContainer] = useState('')
+  const [containerForm, setContainerForm] = useState({
+    containerId: '',
+    sealNumber: '',
+    weight: '',
+    dimensions: {
+      length: '',
+      width: '',
+      height: ''
+    }
+  });
 
   const {
     register,
@@ -182,6 +226,7 @@ export default function ManualShipmentPage() {
 
   useEffect(() => {
     fetchShipments()
+    fetchContainers()
   }, [])
 
   const fetchShipments = async () => {
@@ -198,6 +243,33 @@ export default function ManualShipmentPage() {
       setLoading(false)
     }
   }
+
+  const fetchContainers = async () => {
+    try {
+      const accessToken = localStorage.getItem("token") || ""
+      const data = await getContainers(accessToken)
+      setContainers(data)
+    } catch (error) {
+      console.error("Error fetching containers:", error)
+      toast.error("Failed to fetch containers")
+    }
+  }
+
+  // const handleContainerAssignment = async () => {
+  //   if (!shipment || !selectedContainer) return
+  //   setIsAssigningContainer(true)
+  //   try {
+  //     const accessToken = localStorage.getItem("token") || ""
+  //     await assignContainerToShipment(accessToken, shipment.id, selectedContainer)
+  //     toast.success("Container assigned successfully")
+  //     fetchShipmentDetails()
+  //   } catch (error) {
+  //     console.error("Error assigning container:", error)
+  //     toast.error("Failed to assign container")
+  //   } finally {
+  //     setIsAssigningContainer(false)
+  //   }
+  // }
 
   const handleNext = () => {
     if (currentStep < totalSteps) {
@@ -409,6 +481,20 @@ export default function ManualShipmentPage() {
     setIsUpdateContainerModalOpen(true);
   };
 
+  const handleContainerAssignment = async () => {
+    try {
+      setIsAssigningContainer(true);
+      // Here you would make the API call to assign the container
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulated API call
+      toast.success("Container assigned successfully");
+      setIsUpdateContainerModalOpen(false);
+    } catch (error) {
+      toast.error("Failed to assign container");
+    } finally {
+      setIsAssigningContainer(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[50vh]">
@@ -596,7 +682,7 @@ export default function ManualShipmentPage() {
                                                       {shipment.pickupAddress.city}, {shipment.pickupAddress.state}
                                                     </p>
                                                     <p className="text-sm text-gray-900">
-                                                      {shipment.pickupAddress.country} {shipment.pickupAddress.postcode}
+                                                      {shipment.pickupAddress.country} {shipment.pickupAddress.zipCode}
                                                     </p>
                                                   </>
                                                 ) : (
@@ -614,7 +700,7 @@ export default function ManualShipmentPage() {
                                                       {shipment.deliveryAddress.city}, {shipment.deliveryAddress.state}
                                                     </p>
                                                     <p className="text-sm text-gray-900">
-                                                      {shipment.deliveryAddress.country} {shipment.deliveryAddress.postcode}
+                                                      {shipment.deliveryAddress.country} {shipment.deliveryAddress.zipCode}
                                                     </p>
                                                   </>
                                                 ) : (
@@ -922,55 +1008,103 @@ export default function ManualShipmentPage() {
 
       {/* Update Container Information Modal */}
       <Dialog open={isUpdateContainerModalOpen} onOpenChange={setIsUpdateContainerModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Update Container Information</DialogTitle>
-            <DialogDescription>
-              Update container details for shipment {selectedShipmentForUpdate?.trackingNumber}
+        <DialogContent className="max-w-2xl bg-white rounded-xl shadow-2xl">
+          <DialogHeader className="border-b border-gray-100 pb-4">
+            <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Package className="h-6 w-6 text-primary" />
+              Container Information
+            </DialogTitle>
+            <DialogDescription className="text-gray-500 mt-1">
+              {selectedShipmentForUpdate?.container 
+                ? "Update container details for this shipment"
+                : "Assign a container to this shipment"}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Container Number</Label>
-              <Input placeholder="Enter container number" />
-            </div>
-            <div className="space-y-2">
-              <Label>Container Type</Label>
-              <select className="w-full p-2 border rounded-md">
-                <option value="20ft">20ft Standard</option>
-                <option value="40ft">40ft Standard</option>
-                <option value="40hq">40ft High Cube</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Seal Number</Label>
-              <Input placeholder="Enter seal number" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Weight (kg)</Label>
-                <Input type="number" placeholder="Enter weight" />
-              </div>
-              <div className="space-y-2">
-                <Label>Dimensions (L x W x H)</Label>
-                <div className="flex gap-2">
-                  <Input type="number" placeholder="L" />
-                  <Input type="number" placeholder="W" />
-                  <Input type="number" placeholder="H" />
+
+          <div className="py-6">
+            {selectedShipmentForUpdate?.container ? (
+              <div className="grid grid-cols-2 gap-6 p-4 bg-gray-50 rounded-lg">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-600">Container Number</Label>
+                  <p className="text-lg font-semibold text-gray-900">{selectedShipmentForUpdate.container.containerNumber}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-600">Type</Label>
+                  <p className="text-lg font-semibold text-gray-900">{selectedShipmentForUpdate.container.type}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-600">Capacity</Label>
+                  <p className="text-lg font-semibold text-gray-900">{selectedShipmentForUpdate.container.capacity} tons</p>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-100">
+                  <p className="text-yellow-700 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    No container assigned
+                  </p>
+                </div>
+                
+                <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                  <Label className="text-base font-semibold text-gray-900">Assign Container</Label>
+                  <div className="flex gap-3">
+                    <Select
+                      value={containerForm.containerId}
+                      onValueChange={setSelectedContainer}
+                      disabled={isAssigningContainer}
+                    >
+                      <SelectTrigger className="w-[400px] h-12 bg-white border-gray-200">
+                        <SelectValue placeholder="Select a container" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {containers && containers.map((container) => (
+                          <SelectItem 
+                            key={container.id} 
+                            value={container.id}
+                            className="py-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Package className="h-4 w-4 text-primary" />
+                              <span>{container.containerNumber} - {container.type}</span>
+                              <Badge variant="secondary" className="ml-2">
+                                {container.capacity} tons
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={handleContainerAssignment}
+                      disabled={isAssigningContainer}
+                      className="h-12 px-6 bg-primary hover:bg-primary/90"
+                    >
+                      {isAssigningContainer ? (
+                        <>
+                          <div className="mr-2 h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Assigning...
+                        </>
+                      ) : (
+                        <>
+                          <Package className="mr-2 h-4 w-4" />
+                          Assign Container
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsUpdateContainerModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={() => {
-              // Handle container info update
-              toast.success("Container information updated successfully");
-              setIsUpdateContainerModalOpen(false);
-            }}>
-              Update Information
+
+          <DialogFooter className="border-t border-gray-100 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsUpdateContainerModalOpen(false)}
+              className="h-11 px-6"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
