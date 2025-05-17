@@ -422,8 +422,9 @@ export default function PackageDelivery({ onNext, onBack, onUpdate, initialData 
             >
               Pick Up
             </button>
-            <button
+            {/* <button
               type="button"
+              disabled={true}
               className={`${styles.modeButton} ${deliveryMode === 'park' ? styles.active : ''}`}
               onClick={() => {
                 setDeliveryMode('park');
@@ -435,7 +436,7 @@ export default function PackageDelivery({ onNext, onBack, onUpdate, initialData 
               }}
             >
               Drop Off
-            </button>
+            </button> */}
           </div>
         </div>
 

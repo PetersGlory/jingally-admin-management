@@ -42,6 +42,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { format } from "date-fns"
+import { jsPDF } from "jspdf";
+// import "jspdf-autotable";
 
 // Form validation schema
 const userInfoSchema = z.object({
@@ -82,6 +84,7 @@ interface Shipment {
     country: string
     postcode: string
   } | null
+  deliveryType: string
   scheduledPickupTime: string | null
   estimatedDeliveryTime: string | null
   receiverName: string | null
@@ -258,84 +261,95 @@ export default function ManualShipmentPage() {
   };
 
   const generateInvoicePDF = (invoiceData: InvoiceData) => {
-    // Create a new window for the invoice
-    const invoiceWindow = window.open('', '_blank');
-    if (!invoiceWindow) return;
-
-    // Generate the invoice HTML
-    const invoiceHTML = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Invoice ${invoiceData.invoiceNumber}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 40px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .invoice-details { margin-bottom: 30px; }
-          .customer-info { margin-bottom: 30px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
-          th { background-color: #f5f5f5; }
-          .totals { text-align: right; }
-          .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>INVOICE</h1>
-          <p>Invoice Number: ${invoiceData.invoiceNumber}</p>
-        </div>
-        
-        <div class="invoice-details">
-          <p>Date: ${invoiceData.date}</p>
-          <p>Due Date: ${invoiceData.dueDate}</p>
-        </div>
-
-        <div class="customer-info">
-          <h3>Customer Information</h3>
-          <p>Name: ${invoiceData.customerInfo.name}</p>
-          <p>Email: ${invoiceData.customerInfo.email}</p>
-          <p>Phone: ${invoiceData.customerInfo.phone}</p>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th>Quantity</th>
-              <th>Price</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${invoiceData.items.map(item => `
-              <tr>
-                <td>${item.description}</td>
-                <td>${item.quantity}</td>
-                <td>£${item.price.toFixed(2)}</td>
-                <td>£${(item.quantity * item.price).toFixed(2)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-
-        <div class="totals">
-          <p>Subtotal: £${invoiceData.subtotal.toFixed(2)}</p>
-          <p>Tax (20%): £${invoiceData.tax.toFixed(2)}</p>
-          <h3>Total: £${invoiceData.total.toFixed(2)}</h3>
-        </div>
-
-        <div class="footer">
-          <p>Thank you for your business!</p>
-          <p>This is a computer-generated invoice, no signature required.</p>
-        </div>
-      </body>
-      </html>
-    `;
-
-    // Write the HTML to the new window
-    invoiceWindow.document.write(invoiceHTML);
-    invoiceWindow.document.close();
+    const doc = new jsPDF();
+    
+    // Company Header
+    doc.setFontSize(24);
+    doc.setTextColor(41, 128, 185); // Blue color
+    doc.text("JINGALLY", 105, 20, { align: "center" });
+    
+    // Company Details
+    doc.setFontSize(10);
+    doc.setTextColor(100); // Gray color
+    doc.text("123 Business Street, London, UK", 105, 27, { align: "center" });
+    doc.text("Phone: +44 123 456 7890 | Email: info@jingally.com", 105, 33, { align: "center" });
+    
+    // Invoice Title
+    doc.setFontSize(20);
+    doc.setTextColor(41, 128, 185);
+    doc.text("INVOICE", 105, 45, { align: "center" });
+    
+    // Invoice Details
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Invoice Number: ${invoiceData.invoiceNumber}`, 20, 55);
+    doc.text(`Date: ${invoiceData.date}`, 20, 60);
+    doc.text(`Due Date: ${invoiceData.dueDate}`, 20, 65);
+    
+    // Customer Information
+    doc.setFontSize(12);
+    doc.setTextColor(41, 128, 185);
+    doc.text("Bill To:", 20, 80);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(invoiceData.customerInfo.name, 20, 87);
+    doc.text(invoiceData.customerInfo.email, 20, 92);
+    doc.text(invoiceData.customerInfo.phone, 20, 97);
+    
+    // Items Table Header
+    doc.setFontSize(12);
+    doc.setTextColor(41, 128, 185);
+    doc.text("Items", 20, 115);
+    
+    // Table Headers
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text("Description", 20, 125);
+    doc.text("Price", 150, 125);
+    
+    // Draw line under headers
+    doc.setDrawColor(200);
+    doc.line(20, 127, 190, 127);
+    
+    // Item Details
+    let yPos = 135;
+    doc.setTextColor(60);
+    invoiceData.items.forEach(item => {
+      doc.text(item.description, 20, yPos);
+      doc.text(`£${item.price.toFixed(2)}`, 150, yPos);
+      yPos += 10;
+    });
+    
+    // Draw line before totals
+    doc.setDrawColor(200);
+    doc.line(20, yPos, 190, yPos);
+    yPos += 10;
+    
+    // Totals
+    doc.setTextColor(100);
+    doc.text("Subtotal:", 130, yPos);
+    doc.text(`£${invoiceData.subtotal.toFixed(2)}`, 150, yPos);
+    yPos += 10;
+    doc.text("Tax (20%):", 130, yPos);
+    doc.text(`£${invoiceData.tax.toFixed(2)}`, 150, yPos);
+    yPos += 10;
+    
+    // Total
+    doc.setFontSize(12);
+    doc.setTextColor(41, 128, 185);
+    doc.text("Total:", 130, yPos);
+    doc.text(`£${invoiceData.total.toFixed(2)}`, 150, yPos);
+    
+    // Footer
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    doc.text("Thank you for your business!", 105, pageHeight - 30, { align: "center" });
+    doc.text("This is a computer-generated invoice, no signature required.", 105, pageHeight - 25, { align: "center" });
+    doc.text("Terms & Conditions: Payment is due within 30 days.", 105, pageHeight - 20, { align: "center" });
+    
+    // Save PDF
+    doc.save(`invoice-${invoiceData.invoiceNumber}.pdf`);
   };
 
   const handleProcessPayment = (shipment: Shipment) => {
@@ -800,7 +814,7 @@ export default function ManualShipmentPage() {
           <DialogHeader>
             <DialogTitle>Invoice Generated</DialogTitle>
             <DialogDescription>
-              Your invoice has been generated and opened in a new window. You can print or save it as PDF.
+              Your invoice has been generated and downloaded. You can find it in your downloads folder.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3 mt-4">
@@ -809,15 +823,6 @@ export default function ManualShipmentPage() {
               onClick={() => setIsInvoiceModalOpen(false)}
             >
               Close
-            </Button>
-            <Button
-              onClick={() => {
-                window.print();
-                setIsInvoiceModalOpen(false);
-              }}
-            >
-              <FileDown className="mr-2 h-4 w-4" />
-              Download PDF
             </Button>
           </div>
         </DialogContent>
