@@ -186,6 +186,19 @@ export const assignContainerToShipment = async (accessToken: string, shipmentId:
     return response.data;
 };
 
+export const assignDriverToShipment = async (accessToken: string, shipmentId: string, driverId: string) => {
+    const response = await api.post(`/shipments/assign-driver/`, {
+        shipmentId: shipmentId,
+        driverId: driverId
+    },{ 
+        headers: {
+            Authorization: `Bearer ${accessToken}`
+        }
+    });
+    return response.data;
+};  
+
+
 // update shipment payment status
 export const updateShipmentPaymentStatus = async (accessToken: string, shipmentId: string, shipmentData: any) => {
     const response = await api.put(`/shipments/${shipmentId}/payment-status`, shipmentData, {

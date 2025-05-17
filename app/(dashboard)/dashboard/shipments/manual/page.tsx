@@ -145,6 +145,7 @@ interface InvoiceData {
     quantity: number;
     price: number;
   }[];
+  container: Container | null;
   subtotal: number;
   tax: number;
   total: number;
@@ -390,6 +391,21 @@ export default function ManualShipmentPage() {
     doc.text(invoiceData.customerInfo.name, 20, 87);
     doc.text(invoiceData.customerInfo.email, 20, 92);
     doc.text(invoiceData.customerInfo.phone, 20, 97);
+
+    // Container Information
+    doc.setFontSize(12);
+    doc.setTextColor(41, 128, 185);
+    doc.text("Container Details:", 20, 105);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    if (invoiceData.container) {
+      doc.text(`Container Number: ${invoiceData.container.containerNumber}`, 20, 112);
+      doc.text(`Type: ${invoiceData.container.type}`, 20, 117);
+      doc.text(`Capacity: ${invoiceData.container.capacity} tons`, 20, 122);
+    } else {
+      doc.text("No container assigned", 20, 112);
+    }
     
     // Items Table Header
     doc.setFontSize(12);
@@ -457,6 +473,7 @@ export default function ManualShipmentPage() {
         email: shipment.receiverEmail || 'N/A',
         phone: shipment.receiverPhoneNumber || 'N/A',
       },
+      container: shipment?.container || null,
       items: [{
         description: `Shipment ${shipment.trackingNumber}`,
         quantity: 1,
@@ -481,19 +498,6 @@ export default function ManualShipmentPage() {
     setIsUpdateContainerModalOpen(true);
   };
 
-  // const handleContainerAssignment = async () => {
-  //   try {
-  //     setIsAssigningContainer(true);
-  //     // Here you would make the API call to assign the container
-  //     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulated API call
-  //     toast.success("Container assigned successfully");
-  //     setIsUpdateContainerModalOpen(false);
-  //   } catch (error) {
-  //     toast.error("Failed to assign container");
-  //   } finally {
-  //     setIsAssigningContainer(false);
-  //   }
-  // };
 
   if (loading) {
     return (

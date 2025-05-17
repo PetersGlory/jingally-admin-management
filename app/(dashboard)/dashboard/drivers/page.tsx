@@ -48,7 +48,7 @@ import * as z from "zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { toast } from "sonner"
 
-interface Driver {
+export interface Driver {
   id: string
   email: string
   firstName: string
@@ -56,6 +56,7 @@ interface Driver {
   phone: string
   gender: string | null
   isVerified: boolean
+  country: string
   role: string
   createdAt: string
   updatedAt: string

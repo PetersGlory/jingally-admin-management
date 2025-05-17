@@ -53,7 +53,7 @@ interface Container {
   capacity: number
 }
 
-interface Shipment {
+export interface Shipment {
   id: string
   userId: string
   status: string
@@ -65,6 +65,7 @@ interface Shipment {
   dimensions: Dimensions | null
   pickupAddress: Address | null
   deliveryAddress: Address | null
+  deliveryType: string | null
   scheduledPickupTime: string | null
   estimatedDeliveryTime: string | null
   trackingNumber: string
@@ -104,7 +105,7 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
       setLoading(true)
       const accessToken = localStorage.getItem("token") || ""
       const data = await getShipments(accessToken)
-      const shipmentData = data.find((s: Shipment) => s.id === params?.id)
+      const shipmentData = data.find((s: Shipment) => s.id === params.id)
       if (shipmentData) {
         setShipment(shipmentData)
       } else {
@@ -365,6 +366,35 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
                   <p className="text-muted-foreground">Not specified</p>
                 )}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Driver Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              Driver Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {shipment.driver && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Driver Name</Label>
+                    <p className="font-medium">
+                      {shipment.driver.firstName} {shipment.driver.lastName}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Contact Information</Label>
+                    <p className="font-medium">{shipment.driver.phone}</p>
+                    <p className="text-sm text-muted-foreground">{shipment.driver.email}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

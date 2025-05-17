@@ -43,10 +43,11 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Search, Filter, MoreHorizontal, Download, Package, RefreshCw, Plane, Ship, Eye, UserPlus, Calendar, Clock, MapPin, User, Phone, Mail, Scale, Ruler, AlertTriangle, CreditCard, Activity } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getShipments, updateShipmentStatus, getContainers, assignContainerToShipment, updateShipmentPaymentStatus } from "@/lib/api"
+import { getShipments, updateShipmentStatus, getContainers, assignContainerToShipment, updateShipmentPaymentStatus, getDrivers, assignDriverToShipment } from "@/lib/api"
 import Image from "next/image"
 import { toast } from "sonner"
 import { Label } from "@/components/ui/label"
+import { Driver } from "../drivers/page"
 
 interface Address {
   id?: string
@@ -131,9 +132,12 @@ export default function ShipmentsPage() {
   const [isAssigningContainer, setIsAssigningContainer] = useState(false)
   const [isContainerModalOpen, setIsContainerModalOpen] = useState(false)
   const [isUpdatingPaymentStatus, setIsUpdatingPaymentStatus] = useState(false)
+  const [drivers, setDrivers] = useState<Driver[]>([])
+  const [isAssigningDriver, setIsAssigningDriver] = useState(false)
 
   useEffect(() => {
     fetchShipments()
+    fetchDrivers()
   }, [])
 
   const fetchShipments = async () => {
@@ -159,6 +163,16 @@ export default function ShipmentsPage() {
     } catch (error) {
       console.error("Error fetching containers:", error)
       toast.error("Failed to fetch containers")
+    }
+  }
+  const fetchDrivers = async () => {
+    try {
+      const accessToken = localStorage.getItem("token") || ""
+      const data = await getDrivers(accessToken)
+      setDrivers(data)
+    } catch (error) {
+      console.error("Error fetching drivers:", error)
+      toast.error("Failed to fetch drivers")
     }
   }
 
@@ -303,6 +317,27 @@ export default function ShipmentsPage() {
     }
   }
 
+  const handleDriverAssignment = async (shipmentId: string) => {
+    if (!selectedDriver) {
+      toast.error("Please select a driver")
+      return
+    }
+
+    setIsAssigningDriver(true)
+    try {
+      const accessToken = localStorage.getItem("token") || ""
+      await assignDriverToShipment(accessToken, shipmentId, selectedDriver)
+      toast.success("Driver assigned successfully")
+      fetchShipments() // Refresh the shipments list
+      fetchDrivers() // Refresh the drivers list
+    } catch (error) {
+      console.error("Error assigning driver:", error)
+      toast.error("Failed to assign driver")
+    } finally {
+      setIsAssigningDriver(false)
+    }
+  }
+
   // Filter containers based on search query
   const filteredContainers = containers.filter((container) =>
     container.containerNumber.toLowerCase().includes(containerSearchQuery.toLowerCase())
@@ -337,7 +372,16 @@ export default function ShipmentsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Shipment Management</h1>
-        
+        <Button asChild>
+          <Link href="/dashboard/shipments/create" onClick={() => {
+            localStorage.removeItem('packageInfo');
+            localStorage.removeItem('currentStep');
+            localStorage.removeItem('shipmentCreationStep');
+          }}>
+            <Package className="mr-2 h-4 w-4" />
+            Create Shipment
+          </Link>
+        </Button>
       </div>
 
       <Card>
@@ -485,19 +529,30 @@ export default function ShipmentsPage() {
                                         <SelectValue placeholder="Select a driver" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="driver1">Driver 1</SelectItem>
-                                        <SelectItem value="driver2">Driver 2</SelectItem>
-                                        <SelectItem value="driver3">Driver 3</SelectItem>
+                                        {drivers && drivers.map((driver) => (
+                                          <SelectItem key={driver.id} value={driver.id}>
+                                            {driver.firstName} {driver.lastName}
+                                          </SelectItem>
+                                        ))}
                                       </SelectContent>
                                     </Select>
                                   </div>
                                 </div>
                                 <DialogFooter>
-                                  <Button variant="outline" onClick={() => setSelectedDriver("")}>Cancel</Button>
-                                  <Button onClick={() => {
-                                    // Handle driver assignment
+                                  <Button variant="outline" onClick={() => {
                                     setSelectedDriver("")
-                                  }}>Assign Driver</Button>
+                                    setIsAssigningDriver(false)
+                                  }}>Cancel</Button>
+                                  <Button onClick={() => handleDriverAssignment(shipment.id)} disabled={isAssigningDriver || !selectedDriver}>
+                                    {isAssigningDriver ? (
+                                      <>
+                                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                        Assigning...
+                                      </>
+                                    ) : (
+                                      "Assign Driver"
+                                    )}
+                                  </Button>
                                 </DialogFooter>
                               </DialogContent>
                             </Dialog>
@@ -574,7 +629,7 @@ export default function ShipmentsPage() {
                                     ) : (
                                       "Assign Container"
                                     )}
-                                  </Button>
+                              </Button>
                                 </DialogFooter>
                               </DialogContent>
                             </Dialog>
