@@ -141,7 +141,7 @@ export default function ManualShipmentPage() {
     try {
       setLoading(true)
       const data = await getShipments(accessToken)
-      setShipments(data)
+      setShipments(data.data)
       setError(null)
     } catch (err) {
       setError("Failed to fetch shipments. Please try again later.")
