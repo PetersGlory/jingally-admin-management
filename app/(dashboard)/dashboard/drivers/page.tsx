@@ -82,6 +82,7 @@ const driverFormSchema = z.object({
   gender: z.enum(["male", "female", "other"]).optional(),
   isVerified: z.boolean().default(false),
   role: z.enum(["driver"]).default("driver"),
+  country: z.string()
 })
 
 type DriverFormValues = z.infer<typeof driverFormSchema>
@@ -107,6 +108,7 @@ export default function DriversPage() {
       gender: "male",
       isVerified: false,
       role: "driver",
+      country:""
     },
   })
 
@@ -155,7 +157,8 @@ export default function DriversPage() {
       driver.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       driver.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
       driver.licenseNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      driver.vehiclePlate.toLowerCase().includes(searchQuery.toLowerCase()),
+      driver.vehiclePlate.toLowerCase().includes(searchQuery.toLowerCase())||
+      driver.country.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   // Get status badge variant
@@ -336,6 +339,29 @@ export default function DriversPage() {
                     </FormItem>
                   )}
                 />
+
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                        <SelectItem value="Gambia">Gambia</SelectItem>
+                        <SelectItem value="Nigeria">Nigeria</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               </div>
 
               <DialogFooter>
@@ -409,8 +435,7 @@ export default function DriversPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>License #</TableHead>
-                    <TableHead>Vehicle</TableHead>
+                    <TableHead>Country</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Verified</TableHead>
                     <TableHead className="w-12"></TableHead>
@@ -438,13 +463,7 @@ export default function DriversPage() {
                         </TableCell>
                         <TableCell>{driver.email}</TableCell>
                         <TableCell>{driver.phone}</TableCell>
-                        <TableCell>{driver.licenseNumber}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{driver.vehicleType}</span>
-                            <span className="text-sm text-muted-foreground">{driver.vehiclePlate}</span>
-                          </div>
-                        </TableCell>
+                        <TableCell>{driver.country}</TableCell>
                         <TableCell>{getStatusBadge(driver.status)}</TableCell>
                         <TableCell>
                           {driver.isVerified ? (

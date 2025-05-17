@@ -60,11 +60,6 @@ const mainNavItems: NavItem[] = [
     href: "/dashboard/shipments",
     icon: <Package className="h-5 w-5" />,
   },
-  // {
-  //   title: "Containers",
-  //   href: "/dashboard/shipments/containers",
-  //   icon: <Container className="h-5 w-5" />,
-  // },
   {
     title: "Tracking",
     href: "/dashboard/tracking",
@@ -76,16 +71,6 @@ const mainNavItems: NavItem[] = [
     icon: <Package className="h-5 w-5" />,
   },
 
-  // {
-  //   title: "Support",
-  //   href: "/dashboard/support",
-  //   icon: <MessageSquare className="h-5 w-5" />,
-  // },
-  // {
-  //   title: "Security",
-  //   href: "/dashboard/security",
-  //   icon: <ShieldAlert className="h-5 w-5" />,
-  // },
   {
     title: "Settings",
     href: "/dashboard/settings",

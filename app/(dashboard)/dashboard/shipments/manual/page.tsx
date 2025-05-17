@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Package, Search, Filter, Download, RefreshCw, ArrowLeft, Eye, UserPlus, FileDown, Receipt, CreditCard, Package2, MoreVertical, AlertCircle } from "lucide-react"
-import { assignContainerToBooking, getShipments, updateBookingStatus } from "@/lib/shipment"
+import { assignContainerToBooking, getShipments, updateBookingPayment, updateBookingStatus } from "@/lib/shipment"
 import { toast } from "sonner"
 import PackagePayment from "../create/PackagePayment"
 import {
@@ -215,6 +215,10 @@ export default function ManualShipmentPage() {
       height: ''
     }
   });
+  const [paymentForm, setPaymentForm] = useState({
+    status: '',
+    notes: ''
+  });
 
   const {
     register,
@@ -256,21 +260,39 @@ export default function ManualShipmentPage() {
     }
   }
 
+
   const handleContainerAssignment = async () => {
-    if (!selectedShipment ||!selectedContainer) return
-    setIsAssigningContainer(true)
-    try {
-      const accessToken = localStorage.getItem("token") || ""
-      await assignContainerToBooking(accessToken, selectedShipment.id, selectedContainer)
-      toast.success("Container assigned successfully")
-      fetchShipments()
-    } catch (error) {
-      console.error("Error assigning container:", error)
-      toast.error("Failed to assign container")
-    } finally {
-      setIsAssigningContainer(false)
+    if (!selectedShipmentForUpdate || !containerForm.containerId) {
+      toast.error("Please select a container");
+      return;
     }
-  }
+
+    setIsAssigningContainer(true);
+    toast.info("Assigning container...");
+
+    try {
+      const accessToken = localStorage.getItem("token") || "";
+      await assignContainerToBooking(selectedShipmentForUpdate.id, containerForm.containerId, accessToken);
+      toast.success("Container assigned successfully");
+      fetchShipments();
+      setIsUpdateContainerModalOpen(false);
+      setContainerForm({
+        containerId: '',
+        sealNumber: '',
+        weight: '',
+        dimensions: {
+          length: '',
+          width: '',
+          height: ''
+        }
+      });
+    } catch (error) {
+      console.error("Error assigning container:", error);
+      toast.error("Failed to assign container");
+    } finally {
+      setIsAssigningContainer(false);
+    }
+  };
 
   const handleNext = () => {
     if (currentStep < totalSteps) {
@@ -498,6 +520,12 @@ export default function ManualShipmentPage() {
     setIsUpdateContainerModalOpen(true);
   };
 
+  const handlePaymentFormChange = (field: string, value: string) => {
+    setPaymentForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   if (loading) {
     return (
@@ -825,11 +853,6 @@ export default function ManualShipmentPage() {
               </Table>
             </div>
 
-            {/* {selectedShipment && (
-              <div className="mt-8">
-                <PackagePayment onNext={handleNext} onBack={handleBack} />
-              </div>
-            )} */}
 
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-muted-foreground">
@@ -983,37 +1006,67 @@ export default function ManualShipmentPage() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Payment Status</Label>
-              <select className="w-full p-2 border rounded-md">
-                <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
-                <option value="failed">Failed</option>
-                <option value="refunded">Refunded</option>
-              </select>
+              <Select
+                value={paymentForm.status}
+                onValueChange={(value) => handlePaymentFormChange('status', value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select payment status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
-              <textarea className="w-full p-2 border rounded-md" rows={3} placeholder="Add any notes about the payment status update..." />
+              <textarea 
+                className="w-full p-2 border rounded-md" 
+                rows={3} 
+                placeholder="Add any notes about the payment status update..."
+                value={paymentForm.notes}
+                onChange={(e) => handlePaymentFormChange('notes', e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsUpdatePaymentModalOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsUpdatePaymentModalOpen(false);
+                setPaymentForm({ status: '', notes: '' });
+              }}
+            >
               Cancel
             </Button>
-            <Button onClick={async () => {
-              if (!selectedShipmentForUpdate) return;
-              try {
-                const accessToken = localStorage.getItem("token") || "";
-                await updateBookingStatus(selectedShipmentForUpdate.id, { 
-                  paymentStatus: "paid" 
-                }, accessToken);
-                toast.success("Payment status updated successfully");
-                fetchShipments();
-                setIsUpdatePaymentModalOpen(false);
-              } catch (error) {
-                console.error("Error updating payment status:", error);
-                toast.error("Failed to update payment status");
-              }
-            }}>
+            <Button 
+              onClick={async () => {
+                if (!selectedShipmentForUpdate || !paymentForm.status) {
+                  toast.error("Please select a payment status");
+                  return;
+                }
+                toast.info("Updating payment status...");
+                try {
+                  const accessToken = localStorage.getItem("token") || "";
+                  await updateBookingPayment({ 
+                    shipmentId: selectedShipmentForUpdate.id,
+                    paymentStatus: paymentForm.status,
+                    notes: paymentForm.notes
+                  }, accessToken);
+                  toast.success("Payment status updated successfully");
+                  fetchShipments();
+                  setIsUpdatePaymentModalOpen(false);
+                  setPaymentForm({ status: '', notes: '' });
+                } catch (error) {
+                  console.error("Error updating payment status:", error);
+                  toast.error("Failed to update payment status");
+                }
+              }}
+              disabled={!paymentForm.status}
+            >
               Update Status
             </Button>
           </DialogFooter>
@@ -1062,37 +1115,40 @@ export default function ManualShipmentPage() {
                 
                 <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                   <Label className="text-base font-semibold text-gray-900">Assign Container</Label>
-                  <div className="flex gap-3">
-                    <Select
-                      value={containerForm.containerId}
-                      onValueChange={setSelectedContainer}
-                      disabled={isAssigningContainer}
-                    >
-                      <SelectTrigger className="w-[400px] h-12 bg-white border-gray-200">
-                        <SelectValue placeholder="Select a container" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {containers && containers.map((container) => (
-                          <SelectItem 
-                            key={container.id} 
-                            value={container.id}
-                            className="py-2"
-                          >
-                            <div className="flex items-center gap-2">
-                              <Package className="h-4 w-4 text-primary" />
-                              <span>{container.containerNumber} - {container.type}</span>
-                              <Badge variant="secondary" className="ml-2">
-                                {container.capacity} tons
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <Select
+                        value={containerForm.containerId}
+                        onValueChange={(value) => setContainerForm({ ...containerForm, containerId: value })}
+                        disabled={isAssigningContainer}
+                      >
+                        <SelectTrigger className="w-[400px] h-12 bg-white border-gray-200">
+                          <SelectValue placeholder="Select a container" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {containers && containers.map((container) => (
+                            <SelectItem 
+                              key={container.id} 
+                              value={container.id}
+                              className="py-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Package className="h-4 w-4 text-primary" />
+                                <span>{container.containerNumber} - {container.type}</span>
+                                <Badge variant="secondary" className="ml-2">
+                                  {container.capacity} tons
+                                </Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <Button
                       onClick={handleContainerAssignment}
-                      disabled={isAssigningContainer}
-                      className="h-12 px-6 bg-primary hover:bg-primary/90"
+                      disabled={isAssigningContainer || !containerForm.containerId}
+                      className="w-full h-12 bg-primary hover:bg-primary/90"
                     >
                       {isAssigningContainer ? (
                         <>
@@ -1115,7 +1171,19 @@ export default function ManualShipmentPage() {
           <DialogFooter className="border-t border-gray-100 pt-4">
             <Button 
               variant="outline" 
-              onClick={() => setIsUpdateContainerModalOpen(false)}
+              onClick={() => {
+                setIsUpdateContainerModalOpen(false);
+                setContainerForm({
+                  containerId: '',
+                  sealNumber: '',
+                  weight: '',
+                  dimensions: {
+                    length: '',
+                    width: '',
+                    height: ''
+                  }
+                });
+              }}
               className="h-11 px-6"
             >
               Close
