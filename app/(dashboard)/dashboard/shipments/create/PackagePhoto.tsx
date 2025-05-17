@@ -105,13 +105,13 @@ export default function PackagePhoto({ onNext, onBack, onUpdate, initialData }: 
 
       photos.forEach((photo, index) => {
         if (photo.file) {
-          formData.append('file', photo.file);
+          formData.append('files', photo.file);
         } else {
           // Convert data URL to blob for camera photos
           fetch(photo.url)
             .then(res => res.blob())
             .then(blob => {
-              formData.append('file', blob, `package-photo-${index + 1}.jpg`);
+              formData.append('files', blob, `package-photo-${index + 1}.jpg`);
             });
         }
       });
