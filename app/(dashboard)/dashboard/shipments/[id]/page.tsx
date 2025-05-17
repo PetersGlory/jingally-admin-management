@@ -97,14 +97,14 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
   useEffect(() => {
     fetchShipmentDetails()
     fetchContainers()
-  }, [params.id])
+  }, [params?.id])
 
   const fetchShipmentDetails = async () => {
     try {
       setLoading(true)
       const accessToken = localStorage.getItem("token") || ""
       const data = await getShipments(accessToken)
-      const shipmentData = data.find((s: Shipment) => s.id === params.id)
+      const shipmentData = data.find((s: Shipment) => s.id === params?.id)
       if (shipmentData) {
         setShipment(shipmentData)
       } else {
