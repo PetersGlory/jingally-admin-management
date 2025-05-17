@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Package, Search, Filter, Download, RefreshCw, ArrowLeft, Eye, UserPlus, FileDown, Receipt, CreditCard, Package2, MoreVertical, AlertCircle } from "lucide-react"
-import { getShipments } from "@/lib/shipment"
+import { assignContainerToBooking, getShipments, updateBookingStatus } from "@/lib/shipment"
 import { toast } from "sonner"
 import PackagePayment from "../create/PackagePayment"
 import {
@@ -255,21 +255,21 @@ export default function ManualShipmentPage() {
     }
   }
 
-  // const handleContainerAssignment = async () => {
-  //   if (!shipment || !selectedContainer) return
-  //   setIsAssigningContainer(true)
-  //   try {
-  //     const accessToken = localStorage.getItem("token") || ""
-  //     await assignContainerToShipment(accessToken, shipment.id, selectedContainer)
-  //     toast.success("Container assigned successfully")
-  //     fetchShipmentDetails()
-  //   } catch (error) {
-  //     console.error("Error assigning container:", error)
-  //     toast.error("Failed to assign container")
-  //   } finally {
-  //     setIsAssigningContainer(false)
-  //   }
-  // }
+  const handleContainerAssignment = async () => {
+    if (!selectedShipment ||!selectedContainer) return
+    setIsAssigningContainer(true)
+    try {
+      const accessToken = localStorage.getItem("token") || ""
+      await assignContainerToBooking(accessToken, selectedShipment.id, selectedContainer)
+      toast.success("Container assigned successfully")
+      fetchShipments()
+    } catch (error) {
+      console.error("Error assigning container:", error)
+      toast.error("Failed to assign container")
+    } finally {
+      setIsAssigningContainer(false)
+    }
+  }
 
   const handleNext = () => {
     if (currentStep < totalSteps) {
@@ -481,19 +481,19 @@ export default function ManualShipmentPage() {
     setIsUpdateContainerModalOpen(true);
   };
 
-  const handleContainerAssignment = async () => {
-    try {
-      setIsAssigningContainer(true);
-      // Here you would make the API call to assign the container
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulated API call
-      toast.success("Container assigned successfully");
-      setIsUpdateContainerModalOpen(false);
-    } catch (error) {
-      toast.error("Failed to assign container");
-    } finally {
-      setIsAssigningContainer(false);
-    }
-  };
+  // const handleContainerAssignment = async () => {
+  //   try {
+  //     setIsAssigningContainer(true);
+  //     // Here you would make the API call to assign the container
+  //     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulated API call
+  //     toast.success("Container assigned successfully");
+  //     setIsUpdateContainerModalOpen(false);
+  //   } catch (error) {
+  //     toast.error("Failed to assign container");
+  //   } finally {
+  //     setIsAssigningContainer(false);
+  //   }
+  // };
 
   if (loading) {
     return (
@@ -995,10 +995,20 @@ export default function ManualShipmentPage() {
             <Button variant="outline" onClick={() => setIsUpdatePaymentModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => {
-              // Handle payment status update
-              toast.success("Payment status updated successfully");
-              setIsUpdatePaymentModalOpen(false);
+            <Button onClick={async () => {
+              if (!selectedShipmentForUpdate) return;
+              try {
+                const accessToken = localStorage.getItem("token") || "";
+                await updateBookingStatus(selectedShipmentForUpdate.id, { 
+                  paymentStatus: "paid" 
+                }, accessToken);
+                toast.success("Payment status updated successfully");
+                fetchShipments();
+                setIsUpdatePaymentModalOpen(false);
+              } catch (error) {
+                console.error("Error updating payment status:", error);
+                toast.error("Failed to update payment status");
+              }
             }}>
               Update Status
             </Button>

@@ -668,7 +668,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
 
         <footer className={styles.footer}>
           <button
-            className={`${styles.payButton} ${selectedMethod && !isLoading ? styles.active : ''}`}
+            className={`${styles.payButton} ${!isLoading ? styles.active : ''}`}
             disabled={isLoading}
             onClick={handleSchedulePay}
           >

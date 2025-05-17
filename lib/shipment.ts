@@ -157,11 +157,30 @@ export const trackingShipment = async (trackingNumber: string, token: string) =>
   return response.data;
 };
 
-export const assignContainerToShipment = async (shipmentId: string, containerId: string, token: string) => {  
-  const response = await generalApi.put(`/shipments/${shipmentId}/container`, { containerId }, {
+export const assignContainerToBooking = async (shipmentId: string, containerId: string, token: string) => {  
+  const response = await generalApi.put(`/shipments/assign-container`, { shipmentId, containerId }, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
+  });
+  return response.data;
+};
+
+export const assignDriverToBooking = async (shipmentId: string, driverId: string, token: string) => {  
+  const response = await generalApi.put(`/shipments/assign-driver`, { shipmentId, driverId }, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return response.data;
+};
+
+
+export const updateBookingStatus = async (shipmentId: string, shipmentData: any, token: string) => {
+  const response = await generalApi.put(`/shipments/${shipmentId}/status`, shipmentData, {
+      headers: {
+          Authorization: `Bearer ${token}`
+      }
   });
   return response.data;
 };
