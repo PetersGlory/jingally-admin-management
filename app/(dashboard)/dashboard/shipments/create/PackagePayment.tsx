@@ -100,7 +100,7 @@ const JINGSLY_PRICES = {
 // Frozen food price
 const FROZEN_PRICE_PER_KG = 1100;
 // Air freight price per cubic meter
-const AIR_PRICE_PER_CUBIC_METER = 300; // £300 per cubic meter
+const AIR_PRICE_PER_CUBIC_METER = 10; // £300 per cubic meter
 
 // Sea freight constants
 const SEA_FREIGHT_PRICE_PER_CUBIC_METER = 300; // £300 per cubic meter
@@ -174,18 +174,18 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
 
   const calculateAirFreightPrice = useCallback((weight: number, dimensions: { length: number; width: number; height: number }) => {
     // Convert dimensions from cm to meters
-    const lengthInMeters = dimensions.length / 100;
-    const widthInMeters = dimensions.width / 100;
-    const heightInMeters = dimensions.height / 100;
+    const lengthInMeters = dimensions.length;
+    const widthInMeters = dimensions.width;
+    const heightInMeters = dimensions.height;
     
     // Calculate cubic meters
     const cubicMeters = lengthInMeters * widthInMeters * heightInMeters;
     
     // Calculate price based on cubic meters
-    const price = cubicMeters * AIR_PRICE_PER_CUBIC_METER;
+    const price = cubicMeters / 6000;
     
     // Round to 2 decimal places
-    return Math.round(price * 100) / 100;
+    return Math.round(price * AIR_PRICE_PER_CUBIC_METER);
   }, []);
 
   const calculateJingsllyPrice = useCallback((weight: number) => {
@@ -242,7 +242,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
         return [];
     }
 
-    const serviceFee = Math.round(baseFee * 0.2 * 100) / 100;
+    const serviceFee = 20;
     // const vat = Math.round((baseFee + serviceFee) * 0.2 * 100) / 100;
     const total = Math.round((baseFee + serviceFee) * 100) / 100;
 
