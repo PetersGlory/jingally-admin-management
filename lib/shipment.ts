@@ -193,3 +193,12 @@ export const updateBookingPayment = async (shipmentData: any, token: string) => 
   });
   return response.data;
 };
+
+export const updateBookingUser = async (shipmentData: any, token: string) => {
+  const response = await generalApi.put(`/shipments/user-info`, shipmentData, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+  return response.data;
+};
