@@ -28,6 +28,7 @@ interface Admin {
   phone: string
   gender: string | null
   role: string
+  country: string | null
   createdAt: string
   updatedAt: string
 }
@@ -45,7 +46,8 @@ export default function AdminsPage() {
     email: "",
     phone: "",
     gender: "",
-    role: "admin"
+    role: "admin",
+    country: "",
   })
 
   useEffect(() => {
@@ -78,7 +80,8 @@ export default function AdminsPage() {
         email: "",
         phone: "",
         gender: "",
-        role: "admin"
+        role: "admin",
+        country: "",
       })
       fetchAdmins()
     } catch (err) {
@@ -94,7 +97,8 @@ export default function AdminsPage() {
       admin.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       admin.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
       admin.gender?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      admin.role.toLowerCase().includes(searchQuery.toLowerCase())
+      admin.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      admin.country?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   if (loading) {
@@ -207,6 +211,23 @@ export default function AdminsPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="country">Country</Label>
+              <Select
+                value={newAdmin.country}
+                onValueChange={(value) => setNewAdmin({ ...newAdmin, country: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nigeria">Nigeria</SelectItem>
+                  <SelectItem value="gambia">Gambia</SelectItem>
+                  <SelectItem value="uk">UK</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             </div>
             <DialogFooter>
               <Button onClick={handleCreateAdmin}>Create Admin</Button>
