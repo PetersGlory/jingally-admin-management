@@ -9,6 +9,7 @@ import PackageService from './PackageService';
 import PackageDetails from './PackageDetails';
 import PackagePayment from './PackagePayment';
 import { createShipment } from '@/lib/shipment';
+import PackageUserInfo from './PackageUserInfo';
 
 const STEPS = [
   {
@@ -35,6 +36,11 @@ const STEPS = [
     id: 'delivery',
     title: 'Delivery Information',
     component: PackageDelivery,
+  },
+  {
+    id: 'userInfo',
+    title: 'User Information',
+    component: PackageUserInfo,
   },
   {
     id: 'payment',

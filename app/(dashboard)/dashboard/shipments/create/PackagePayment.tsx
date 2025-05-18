@@ -230,10 +230,10 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
         methodName = 'Frozen Food Shipping';
         break;
       case SHIPPING_METHODS.SEA:
-        if (weight > SEA_MAX_WEIGHT_PER_ITEM) {
-          setError(`Sea freight items cannot exceed ${SEA_MAX_WEIGHT_PER_ITEM}kg per item`);
-          return [];
-        }
+        // if (weight > SEA_MAX_WEIGHT_PER_ITEM) {
+        //   setError(`Sea freight items cannot exceed ${SEA_MAX_WEIGHT_PER_ITEM}kg per item`);
+        //   return [];
+        // }
         baseFee = calculateSeaFreightPrice(dimensions);
         methodName = 'Sea Freight';
         break;
@@ -576,11 +576,11 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
                   <span>Pickup Date</span>
                 </div>
                 <span>
-                  {new Date(shipment.scheduledPickupTime).toLocaleDateString('en-GB', {
+                  {shipment.scheduledPickupTime ? new Date(shipment.scheduledPickupTime).toLocaleDateString('en-GB', {
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric'
-                  })}
+                  }) : 'N/A'}
                 </span>
               </div>
               <div className={styles.summaryItem}>
@@ -813,13 +813,16 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
               <div className={styles.successIcon}>
                 <Check size={32} />
               </div>
-              <h2>Payment Successful!</h2>
+              <h2>Payment Scheduled!</h2>
               <p>
-                Your payment has been processed successfully. You will be redirected to tracking shortly.
+                Your payment has been scheduled successfully. You will be redirected to tracking shortly.
               </p>
               <div className={styles.progressBar}>
                 <div className={styles.progress} />
               </div>
+              <p className="text-sm text-gray-500 mt-4">
+                Please keep your tracking number for future reference.
+              </p>
             </div>
           </div>
         )}
