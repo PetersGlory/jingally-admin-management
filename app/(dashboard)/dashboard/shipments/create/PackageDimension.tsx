@@ -118,7 +118,7 @@ export default function PackageDimension({ onNext, onBack, onUpdate, initialData
       setFormData({
         ...formData,
         weight: value,
-        width: value,
+        // width: value,
       });
     }else{
       setFormData(prev => ({ ...prev, [field]: value }));
