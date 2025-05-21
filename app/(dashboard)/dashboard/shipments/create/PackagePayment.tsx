@@ -172,7 +172,15 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
     return (dimensions.length * dimensions.width * dimensions.height) / 6000;
   }, []);
 
+  const calculateAirFreightPrice2 = useCallback((weight: number) => {
+    const mainWeight = weight;
+    const actualPrice = mainWeight * 10;
+    return actualPrice;
+  }, []);
+
   const calculateAirFreightPrice = useCallback((weight: number, dimensions: { length: number; width: number; height: number }) => {
+    const weightForAirFreight = calculateAirFreightPrice2(weight);
+    
     // Convert dimensions from cm to meters
     const lengthInMeters = dimensions.length;
     const widthInMeters = dimensions.width;
@@ -183,10 +191,12 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
     
     // Calculate price based on cubic meters
     const price = cubicMeters / 6000;
+    const newPrice = Math.round(price * AIR_PRICE_PER_CUBIC_METER);
     
-    // Round to 2 decimal places
-    return Math.round(price * AIR_PRICE_PER_CUBIC_METER);
+    // Compare and return the greater value
+    return Math.max(weightForAirFreight, newPrice);
   }, []);
+
 
   const calculateJingsllyPrice = useCallback((weight: number) => {
     if (weight <= JINGSLY_PRICES.TIER_1.maxWeight) {
