@@ -1,5 +1,7 @@
 import axios from "axios";
 
+export const newbaseURL='https://jingally-server.onrender.com/api/admin'
+
 
 // Set the base URL for your API
 const api = axios.create({
@@ -22,6 +24,15 @@ export const login = async (email: string, password: string) => {
     const response = await authApi.post('/login', { email, password });
     return response.data;
 };
+
+export const getAllAddresses = async(token:string) =>{
+    const response = await generalApi.get("/addresses/all",{
+      headers:{
+        Authorization: `Bearer ${token}`
+      }
+    });
+    return response.data;
+}
 
 export const getProfile = async (accessToken: string) => {
     const response = await authApi.get('/me', {
@@ -257,3 +268,31 @@ export const createAdmin = async (accessToken: string, adminData: any) => {
 };
 
 
+// ==== PRICE GUIDE SECTION =====
+
+export const getPriceGuides = async (accessToken: string) => {
+    const response = await api.get('/price-guide', {
+        headers: {
+            Authorization: `Bearer ${accessToken}`
+        }
+    });
+    return response.data;
+};
+
+export const createPriceGuide = async(accessToken: string, data:any) =>{
+    const response = await api.post('/price-guide', data, {
+        headers:{
+            Authorization: `Bearer ${accessToken}`
+        }
+    })
+    return response.data;
+}
+
+export const deletePriceGuide = async(accessToken:string, guideId:any) => {
+    const response = await api.delete(`/price-guide/${guideId}`,{
+        headers:{
+            Authorization: `Bearer ${accessToken}`
+        }
+    })
+    return response.data;
+}

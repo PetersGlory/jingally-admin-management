@@ -201,6 +201,7 @@ export default function ShipmentsPage() {
       shipment.user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shipment.user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shipment.pickupAddress?.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shipment.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
       shipment.deliveryAddress?.city.toLowerCase().includes(searchQuery.toLowerCase())
 
     if (activeTab === "all") return matchesSearch
@@ -239,6 +240,12 @@ export default function ShipmentsPage() {
       case "customs":
         return (
           <Badge variant="outline" className="text-orange-500 border-orange-500">
+            {status}
+          </Badge>
+        )
+      case "booked":
+        return (
+          <Badge variant="outline" className="text-cyan-600 border-cyan-600">
             {status}
           </Badge>
         )

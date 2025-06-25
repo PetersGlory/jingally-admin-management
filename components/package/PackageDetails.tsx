@@ -1,17 +1,29 @@
 "use client"
 
-import React, { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Package, Truck, Box, FileText, AlertCircle, ArrowLeft } from 'lucide-react';
-import styles from './PackageDetails.module.css';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createShipment } from '@/lib/shipment';
+import { Package, Truck, Box, FileText, AlertCircle, ArrowLeft } from 'lucide-react';
+import styles from './PackageDetails.module.css';
+import { updateShipment } from '@/lib/shipments';
+
+interface PackageDetails {
+  type: string;
+  description: string;
+  isFragile: boolean;
+}
+
+interface FormErrors {
+  type?: string;
+  description?: string;
+  general?: string;
+}
 
 const PACKAGE_TYPES = [
   { 
-    id: 'document', 
-    label: 'Document', 
+    id: 'items', 
+    label: 'Item', 
     icon: FileText,
-    description: 'Letters, papers, contracts',
+    description: 'Jingally Price guides',
     color: '#FFB156'
   },
   { 
@@ -37,47 +49,28 @@ const PACKAGE_TYPES = [
   },
 ] as const;
 
-interface FormErrors {
-  packageType?: string;
-  description?: string;
-  general?: string;
-}
-
 interface PackageDetailsProps {
-  onNext: () => void;
-  onBack: () => void;
-  onUpdate: (data: any) => void;
-  initialData?: any;
+  selectedType?: string;
+  serviceType: string;
+  handleNextStep: () => void;
+  handlePreviousStep: () => void;
 }
 
-export default function PackageDetails({ onNext, onBack, onUpdate, initialData }: PackageDetailsProps) {
+export default function PackageDetails({ selectedType, serviceType, handleNextStep, handlePreviousStep }: PackageDetailsProps) {
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    packageType: initialData?.packageType || '',
-    description: initialData?.description || '',
-    isFragile: initialData?.isFragile || false,
+  const [formData, setFormData] = useState<PackageDetails>({
+    type: selectedType || '',
+    description: serviceType === 'airfreight' ? 'this is airfrieght and its N/A' :'',
+    isFragile: false,
   });
-
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [sarviceTypes, setServiceTypes] = useState('');
-
-  useEffect(()=>{
-    const serviceType = localStorage.getItem('selectedService');
-    setServiceTypes(serviceType || '')
-    if(serviceType){
-      setFormData({
-        ...formData,
-        description:'this is airfrieght and its N/A'
-      })
-    }
-  },[])
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
     
-    if (!formData.packageType) {
-      newErrors.packageType = 'Please select a package type';
+    if (!formData.type) {
+      newErrors.type = 'Please select a package type';
     }
     
     if (!formData.description.trim()) {
@@ -90,22 +83,14 @@ export default function PackageDetails({ onNext, onBack, onUpdate, initialData }
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleTypeSelect = (packageType: string) => {
-    setFormData(prev => ({ ...prev, packageType }));
-    setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors.packageType;
-      return newErrors;
-    });
+  const handleTypeSelect = (type: string) => {
+    setFormData(prev => ({ ...prev, type }));
+    setErrors(prev => ({ ...prev, type: undefined }));
   };
 
   const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, description: e.target.value }));
-    setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors.description;
-      return newErrors;
-    });
+    setErrors(prev => ({ ...prev, description: undefined }));
   };
 
   const handleFragileToggle = (value: boolean) => {
@@ -114,79 +99,72 @@ export default function PackageDetails({ onNext, onBack, onUpdate, initialData }
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-    
-      const serviceType = localStorage.getItem('selectedService');
-      try {
-        setIsLoading(true);
-        setErrors({});
-        
-        const dataBody = {
-          serviceType: serviceType,
-          packageType: formData.packageType,
-          packageDescription: formData.description,
-          fragile: formData.isFragile.toString()
-        };
 
-        const token = localStorage.getItem('token');
-        if (!token) {
-          router.replace('/');
-          return;
-        }
-
-        const response = await createShipment(dataBody, token);
-
-        if (response.success) {
-          localStorage.setItem('packageInfo', JSON.stringify(response.data));
-          localStorage.setItem('currentStep', '2');
-          onNext();
-        } else {
-          throw new Error(response.message || 'Failed to create shipment');
-        }
-      } catch (error: any) {
-        console.error('Error saving package details:', error);
-        setErrors({ 
-          general: error.message || 'Failed to save package details. Please try again.' 
-        });
-      } finally {
-        setIsLoading(false);
+    try {
+      setIsLoading(true);
+      setErrors({});
+      const dataBody={
+        serviceType: serviceType,
+        packageType: formData.type,
+        packageDescription: formData.description,
+        fragile: formData.isFragile.toString()
       }
-    
+
+      const token = localStorage.getItem('token');
+      const packageInfo = localStorage.getItem('packageInfo');
+      if (!token) {
+        router.replace('/');
+        return;
+      }
+
+      const response = await updateShipment(dataBody, token,JSON.parse(packageInfo || "{}").id);
+
+      if (response.success) {
+        localStorage.setItem('packageInfo', JSON.stringify(response.data));
+        localStorage.setItem('currentStep', '3')
+        handleNextStep();
+      } else {
+        throw new Error(response.message || 'Failed to create shipment');
+      }
+    } catch (error: any) {
+      console.error('Error saving package details:', error);
+      setErrors({ 
+        general: error.message || 'Failed to save package details. Please try again.' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className='w-full h-full bg-white'>
-      <div className={`${styles.header} flex flex-row items-center justify-start gap-4 px-4`}>
-        <button onClick={onBack}>
+      <div className='flex flex-row items-center justify-start gap-4 px-4'>
+        <button onClick={handlePreviousStep}>
           <ArrowLeft size={20} />
         </button>
-        <div className={styles.headerContent}>
+        <div className={styles.header}>
           <h1>Package Information</h1>
           <p>Select your package type and provide details</p>
         </div>
       </div>
 
-      {errors.general || errors.packageType || errors.description && (
+      {errors.general && (
         <div className={styles.errorAlert}>
           <AlertCircle size={20} />
-          <span>
-            {errors.general ||
-              errors.packageType ||
-              errors.description}
-          </span>
+          <span>{errors.general}</span>
         </div>
       )}
 
-<br />
       <div className={styles.section}>
         <h2>Package Type</h2>
         <div className={styles.typeGrid}>
           {PACKAGE_TYPES.map((type) => {
             // Skip items package type if service type is airfreight
-            if (sarviceTypes === 'airfreight' && type.id !== 'parcel') {
+            if (serviceType === 'airfreight' && type.id !== 'parcel') {
               return null;
             }
 
-            if (sarviceTypes === 'seafreight' && type.id === 'parcel') {
+            if (serviceType === 'seafreight' && type.id === 'parcel') {
               return null;
             }
             
@@ -194,10 +172,8 @@ export default function PackageDetails({ onNext, onBack, onUpdate, initialData }
             return (
               <button
                 key={type.id}
-                className={`${styles.typeCard} ${formData.packageType === type.id ? styles.selected : ''}`}
-                onClick={() => {
-                  handleTypeSelect(type.id)
-                }}
+                className={`${styles.typeCard} ${formData.type === type.id ? styles.selected : ''}`}
+                onClick={() => handleTypeSelect(type.id)}
                 style={{ '--type-color': type.color } as React.CSSProperties}
               >
                 <div className={styles.iconContainer}>
@@ -211,10 +187,10 @@ export default function PackageDetails({ onNext, onBack, onUpdate, initialData }
             );
           })}
         </div>
-        {errors.packageType && <span className={styles.error}>{errors.packageType}</span>}
+        {errors.type && <span className={styles.error}>{errors.type}</span>}
       </div>
 
-      {sarviceTypes !== '' && (
+      {serviceType !== 'airfreight' && (
 
       <div className={styles.section}>
         <h2>Package Description</h2>
@@ -250,12 +226,9 @@ export default function PackageDetails({ onNext, onBack, onUpdate, initialData }
         </div>
       </div>
 
-      <br />
-
       <button
         className={styles.submitButton}
         onClick={handleSubmit}
-        type='button'
         disabled={isLoading}
       >
         {isLoading ? (

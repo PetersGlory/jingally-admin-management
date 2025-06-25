@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -102,8 +102,9 @@ export interface Shipment {
   container: Container | null
 }
 
-export default function ShipmentDetailsPage({ params }: { params: { id: string } }) {
+export default function ShipmentDetailsPage() {
   const router = useRouter()
+  const params = useParams();
   const [shipment, setShipment] = useState<Shipment | null>(null)
   const [loading, setLoading] = useState(true)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
@@ -133,7 +134,8 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
     try {
       setLoading(true)
       const accessToken = localStorage.getItem("token") || ""
-      const response = await getShipmentDetails(params.id, accessToken)
+      const idParams = params?.id || ""
+      const response = await getShipmentDetails(idParams, accessToken)
 
       if (response.success && response.data) {
         setShipment(response.data)
@@ -356,11 +358,10 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
             <p className="text-muted-foreground">Tracking Number: {shipment.trackingNumber}</p>
           </div>
         </div>
-        <Button variant="outline" onClick={()=>{
-            
-            fetchShipmentDetails()
-            fetchContainers()
-            fetchDrivers()
+        <Button variant="outline" onClick={() => {
+          fetchShipmentDetails()
+          fetchContainers()
+          fetchDrivers()
         }}>
           <RefreshCw className="mr-2 h-4 w-4" />
           Refresh
@@ -412,6 +413,18 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
                   <p className="font-medium">{shipment.receiverPhoneNumber}</p>
                 </div>
               )}
+              {shipment.receiverName && (
+                <div className="space-y-2">
+                  <Label>Receiver Name</Label>
+                  <p className="font-medium">{shipment.receiverName}</p>
+                </div>
+              )}
+              {shipment.receiverEmail && (
+                <div className="space-y-2">
+                  <Label>Receiver Email</Label>
+                  <p className="font-medium">{shipment.receiverEmail}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -433,8 +446,20 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
               <div className="space-y-2">
                 <Label>Dimensions</Label>
                 <p className="font-medium">
-                  {shipment.dimensions 
-                    ? `${shipment.dimensions.width}x${shipment.dimensions.height}x${shipment.dimensions.length} cm`
+                  {shipment.dimensions
+                    ? (() => {
+                        let dims = null;
+                        try {
+                          dims = typeof shipment.dimensions === "string"
+                            ? JSON.parse(shipment.dimensions)
+                            : shipment.dimensions;
+                        } catch (e) {
+                          dims = null;
+                        }
+                        return dims && dims.width && dims.height && dims.length
+                          ? `${dims.width}x${dims.height}x${dims.length} cm`
+                          : 'Not specified';
+                      })()
                     : 'Not specified'}
                 </p>
               </div>
@@ -461,40 +486,56 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Pickup Address</Label>
-                {shipment.pickupAddress ? (
-                  <div className="space-y-1">
-                    <p className="font-medium">{shipment.pickupAddress.street}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {shipment.pickupAddress.city}, {shipment.pickupAddress.state}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {shipment.pickupAddress.country} {shipment.pickupAddress.postcode}
-                    </p>
+            {(() => {
+              let pickupAddressObj = null;
+              let deliveryAddressObj = null;
+              try {
+                pickupAddressObj = typeof shipment.pickupAddress === 'string' ? JSON.parse(shipment.pickupAddress) : shipment.pickupAddress;
+              } catch (e) {
+                pickupAddressObj = null;
+              }
+              try {
+                deliveryAddressObj = typeof shipment.deliveryAddress === 'string' ? JSON.parse(shipment.deliveryAddress) : shipment.deliveryAddress;
+              } catch (e) {
+                deliveryAddressObj = null;
+              }
+              return (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Pickup Address</Label>
+                    {pickupAddressObj ? (
+                      <div className="space-y-1">
+                        <p className="font-medium">{pickupAddressObj.street}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {pickupAddressObj.city}, {pickupAddressObj.state}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {pickupAddressObj.country} {pickupAddressObj.postcode || pickupAddressObj.zipCode}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">Not specified</p>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">Not specified</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Delivery Address</Label>
-                {shipment.deliveryAddress ? (
-                  <div className="space-y-1">
-                    <p className="font-medium">{shipment.deliveryAddress.street}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {shipment.deliveryAddress.city}, {shipment.deliveryAddress.state}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {shipment.deliveryAddress.country} {shipment.deliveryAddress.postcode}
-                    </p>
+                  <div className="space-y-2">
+                    <Label>Delivery Address</Label>
+                    {deliveryAddressObj ? (
+                      <div className="space-y-1">
+                        <p className="font-medium">{deliveryAddressObj.street}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {deliveryAddressObj.city}, {deliveryAddressObj.state}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {deliveryAddressObj.country} {deliveryAddressObj.postcode || deliveryAddressObj.zipCode}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">Not specified</p>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">Not specified</p>
-                )}
-              </div>
-            </div>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -797,7 +838,7 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
         </Card>
 
         {/* Package Images */}
-        {shipment.images && shipment.images.length > 0 && (
+        {shipment.images && Array.isArray(shipment.images) && shipment.images.length > 0 && (
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

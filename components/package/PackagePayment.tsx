@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -158,7 +158,7 @@ const calculateSeaFreightPrice = (dimensions: { length: number; width: number; h
   return volumetricWeight * SEA_FREIGHT_PRICE_PER_CUBIC_METER;
 };
 
-export default function PackagePayment({ onNext, onBack }: { onNext: () => void, onBack: () => void }) {
+export default function PackagePayment({ handleNextStep, handlePreviousStep }: { handleNextStep: () => void, handlePreviousStep: () => void }) {
   const router = useRouter();
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod['id'] | null>(null);
   const [showCardModal, setShowCardModal] = useState(false);
@@ -178,9 +178,11 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
   const [selectedPaymentAmount,setSelectedPaymentAmount] = useState('0')
 
   const parseAddress = (addressString: string): Address => {
+    console.log(addressString)
     try {
       return JSON.parse(addressString);
     } catch (error) {
+      console.error('Error parsing address:', error);
       return {
         street: '',
         city: '',
@@ -199,6 +201,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
     try {
       return JSON.parse(priceGuidesString);
     } catch (error) {
+      console.error('Error parsing price guides:', error);
       return [];
     }
   };
@@ -219,6 +222,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
         setError('No shipment information found');
       }
     } catch (error) {
+      console.error('Error fetching data:', error);
       setError('Failed to load shipment information');
     } finally {
       setIsLoading(false);
@@ -245,6 +249,13 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
       icon: <Banknote size={20} />,
       isEnabled: true
     },
+    // {
+    //   id: 'part_payment',
+    //   name: 'Part Payment',
+    //   description: 'Pay via bank transfer',
+    //   icon: <Banknote size={20} />,
+    //   isEnabled: true
+    // },
   ], []);
 
 
@@ -305,6 +316,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
       { label: `${methodName} Fee`, amount: `£${baseFee.toFixed(2)}`, type: 'regular' as const },
       ...(serviceType !== SHIPPING_METHODS.SEA && deliveryType == "home" ? [
         { label: 'Service Fee', amount: `£${20.00}`, type: 'regular' as const }
+        // { label: 'Service Fee', amount: `£${serviceFee.toFixed(2)}`, type: 'regular' as const }
       ] : []),
       { label: 'Total', amount: `£${total.toFixed(2)}`, type: 'total' as const }
     ];
@@ -468,7 +480,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
         
         setTimeout(() => {
           setShowSuccessModal(false);
-          router.replace("/dashboard/shipments/manual");
+          router.replace("/dashboard/shipments");
         }, 2000);
       } else {
         setError(paymentResponse.message || 'Payment failed');
@@ -533,19 +545,19 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
           <div className="flex flex-row items-center gap-4">
             <button 
               className={styles.backButton}
-              onClick={onBack}
+              onClick={handlePreviousStep}
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
         <h1>Payment</h1>
           </div>
-          <button 
-            className={styles.cancelButton}
-            onClick={onBack}
-          >
-            Cancel
-          </button>
-        </header>
+        <button 
+          className={styles.cancelButton}
+          onClick={handlePreviousStep}
+        >
+          Cancel
+        </button>
+      </header>
 
       <main className={styles.main}>
         {/* Package Summary */}
@@ -584,7 +596,6 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
                 </span>
               </div>
             )}
-            
             <div className={styles.summaryItem}>
               <div className="flex items-center gap-2">
                 <Truck className="h-4 w-4" />
@@ -592,15 +603,19 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
               </div>
               <span className="capitalize">{shipment?.serviceType}</span>
             </div>
-
             <div className={styles.summaryItem}>
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                <span>Package Type</span>
+                <Calendar className="h-4 w-4" />
+                <span>Pickup Date</span>
               </div>
-              <span className="capitalize">{shipment?.packageType}</span>
+              <span>
+                {shipment?.scheduledPickupTime && new Date(shipment.scheduledPickupTime).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })}
+              </span>
             </div>
-            
             <div className={styles.summaryItem}>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
@@ -724,7 +739,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
                     }}
                   />
                   <label htmlFor="pay70" className="text-sm font-medium text-gray-700">
-                    Pay 70%
+                    Pay 70%{/*  (£{(parseFloat(costs.find(c => c.type === 'total')?.amount.replace('£', '') || '0') * 0.7).toFixed(2)}) */}
                   </label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -743,7 +758,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
                     }}
                   />
                   <label htmlFor="pay50" className="text-sm font-medium text-gray-700">
-                    Pay 50% 
+                    Pay 50% {/* (£{(parseFloat(costs.find(c => c.type === 'total')?.amount.replace('£', '') || '0') * 0.5).toFixed(2)}) */}
                   </label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -761,7 +776,7 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
                     }}
                   />
                   <label htmlFor="payFull" className="text-sm font-medium text-gray-700">
-                    Pay in full upon delivery
+                    Pay in full upon delivery{/* (£{parseFloat(costs.find(c => c.type === 'total')?.amount.replace('£', '') || '0').toFixed(2)}) */}
                   </label>
                 </div>
               </div>
@@ -775,6 +790,53 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
             )}
           </div>
         </div>
+
+        {/* Payment Methods */}
+        {/* <div className={styles.paymentSection}>
+          <h2 className={styles.sectionTitle}>Select Payment Method</h2>
+          <div className={styles.paymentMethods}>
+            {paymentMethods.map((method) => {
+              const isSelected = selectedMethod === method.id;
+              // Only show bank transfer if partial payment is selected
+              if (selectedPaymentAmount !== '0' && method.id !== 'bank_transfer') {
+                return null;
+              }
+              return (
+                <button
+                  key={method.id}
+                  className={`${styles.paymentMethod} ${isSelected ? styles.selected : ''}`}
+                  onClick={() => {
+                    if (method.id === 'card') {
+                      setShowCardModal(true);
+                    } else if (method.id === 'paypal') {
+                      setSelectedMethod(method.id as PaymentMethod['id']);
+                      setShowPayPalModal(true);
+                    } else if (method.id === 'bank_transfer') {
+                      setSelectedMethod(method.id as PaymentMethod['id']);
+                      setShowBankModal(true);
+                    } else if(method.id === 'part_payment'){
+                      setSelectedMethod(method.id as PaymentMethod['id']);
+                    } else {
+                      setSelectedMethod(method.id as PaymentMethod['id']);
+                    }
+                  }}
+                  disabled={!method.isEnabled}
+                >
+                  <div className={styles.methodContent}>
+                    <div className={`${styles.methodIcon} ${isSelected ? styles.selectedIcon : ''}`}>
+                      {method.icon}
+                    </div>
+                    <div className={styles.methodInfo}>
+                      <h3>{method.name}</h3>
+                      <p>{method.description}</p>
+                    </div>
+                    {isSelected && <Check size={20} className={styles.checkIcon} />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div> */}
 
         {/* Security Note */}
         <div className={styles.securityNote}>
@@ -946,53 +1008,52 @@ export default function PackagePayment({ onNext, onBack }: { onNext: () => void,
               </div>
             </div>
           </div>
-        // </div>
-      )}
+        )}
 
-      {/* Bank Transfer Modal */}
-      {showBankModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modal}>
-            <div className={styles.modalHeader}>
-              <h2>Bank Transfer Details</h2>
-              <button onClick={() => setShowBankModal(false)}>
-                <X size={24} />
-              </button>
-            </div>
+        {/* Bank Transfer Modal */}
+        {showBankModal && (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modal}>
+              <div className={styles.modalHeader}>
+                <h2>Bank Transfer Details</h2>
+                <button onClick={() => setShowBankModal(false)}>
+                  <X size={24} />
+                </button>
+              </div>
 
-            <div className={styles.modalContent}>
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-semibold mb-2">Bank Account Details</h3>
-                  <div className="space-y-2">
-                    <p><span className="font-medium">Account Name:</span> Jingally logistics ltd</p>
-                    <p><span className="font-medium">Account Number:</span> 29944068</p>
-                    <p><span className="font-medium">Sort Code:</span> 305466</p>
-                    <p><span className="font-medium">Bank Name:</span> Llyods Bank</p>
+              <div className={styles.modalContent}>
+                <div className="space-y-4">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h3 className="font-semibold mb-2">Bank Account Details</h3>
+                    <div className="space-y-2">
+                      <p><span className="font-medium">Account Name:</span> Jingally logistics ltd</p>
+                      <p><span className="font-medium">Account Number:</span> 29944068</p>
+                      <p><span className="font-medium">Sort Code:</span> 305466</p>
+                      <p><span className="font-medium">Bank Name:</span> Llyods Bank</p>
+                    </div>
                   </div>
-                </div>
 
-                <div className="p-4 bg-orange-50 rounded-lg">
-                  <h3 className="font-semibold mb-2">Important Information</h3>
-                  <p className="text-sm text-orange-800">
-                    Please use your tracking number as the payment reference. Your shipment will be processed once the payment is confirmed. For part payments, please Note that it's (70%/30%) and also indicate the amount paid in the reference.
-                  </p>
-                </div>
+                  <div className="p-4 bg-orange-50 rounded-lg">
+                    <h3 className="font-semibold mb-2">Important Information</h3>
+                    <p className="text-sm text-orange-800">
+                      Please use your tracking number as the payment reference. Your shipment will be processed once the payment is confirmed. For part payments, please Note that it's (70%/30%) and also indicate the amount paid in the reference.
+                    </p>
+                  </div>
 
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowBankModal(false)}
-                  >
-                    Close
-                  </Button>
-                  <Button
-                    onClick={handleBankTransferConfirmation}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Processing...' : 'I Have Made Payment'}
-                  </Button>
-                </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowBankModal(false)}
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      onClick={handleBankTransferConfirmation}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Processing...' : 'I Have Made Payment'}
+                    </Button>
+                  </div>
               </div>
             </div>
           </div>

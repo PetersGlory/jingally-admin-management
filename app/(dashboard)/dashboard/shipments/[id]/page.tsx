@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import React, { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,8 +14,11 @@ import Image from "next/image"
 import { 
   User, Mail, Phone, Package, Scale, Ruler, AlertTriangle, 
   CreditCard, Activity, MapPin, Calendar, Clock, ArrowLeft,
-  RefreshCw
+  RefreshCw,
+  Pencil,
+  List
 } from "lucide-react"
+import { DimensionPallet } from "@/lib/shipment"
 
 interface Address {
   id?: string
@@ -61,10 +64,11 @@ export interface Shipment {
   serviceType: string | null
   packageDescription: string | null
   fragile: boolean | null
+  priceGuides:string
   weight: number | null
   dimensions: Dimensions | null
-  pickupAddress: Address | null
-  deliveryAddress: Address | null
+  pickupAddress: Address | string
+  deliveryAddress: Address | string
   deliveryType: string | null
   scheduledPickupTime: string | null
   estimatedDeliveryTime: string | null
@@ -85,8 +89,9 @@ export interface Shipment {
   paymentMethod: string | null
 }
 
-export default function ShipmentDetailsPage({ params }: { params: { id: string } }) {
+export default function ShipmentDetailsPage() {
   const router = useRouter()
+  const params = useParams();
   const [shipment, setShipment] = useState<Shipment | null>(null)
   const [loading, setLoading] = useState(true)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
@@ -94,6 +99,7 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
   const [containers, setContainers] = useState<Container[]>([])
   const [selectedContainer, setSelectedContainer] = useState("")
   const [isAssigningContainer, setIsAssigningContainer] = useState(false)
+
 
   useEffect(() => {
     fetchShipmentDetails()
@@ -107,6 +113,7 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
       const data = await getShipments(accessToken)
       const shipmentData = data.find((s: Shipment) => s.id === params.id)
       if (shipmentData) {
+        console.log(shipmentData)
         setShipment(shipmentData)
       } else {
         toast.error("Shipment not found")
@@ -249,10 +256,19 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
             <p className="text-muted-foreground">Tracking Number: {shipment.trackingNumber}</p>
           </div>
         </div>
-        <Button variant="outline" onClick={fetchShipmentDetails}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchShipmentDetails}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={() => {
+            localStorage.setItem("packageInfo", JSON.stringify(shipment));
+            router.push(`/dashboard/shipments/${params.id}/edit`)
+          }}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -284,6 +300,18 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
                   <p className="font-medium">{shipment.receiverPhoneNumber}</p>
                 </div>
               )}
+              {shipment.receiverName && (
+                <div className="space-y-2">
+                  <Label>Receiver Name</Label>
+                  <p className="font-medium">{shipment.receiverName}</p>
+                </div>
+              )}
+              {shipment.receiverEmail && (
+                <div className="space-y-2">
+                  <Label>Receiver Email</Label>
+                  <p className="font-medium">{shipment.receiverEmail}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -297,30 +325,72 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Weight</Label>
-                <p className="font-medium">{shipment.weight ? `${shipment.weight} kg` : 'Not specified'}</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Dimensions</Label>
-                <p className="font-medium">
-                  {shipment.dimensions 
-                    ? `${shipment.dimensions.width}x${shipment.dimensions.height}x${shipment.dimensions.length} cm`
-                    : 'Not specified'}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label>Fragile</Label>
-                <p className="font-medium">{shipment.fragile ? 'Yes' : 'No'}</p>
-              </div>
-              {shipment.price && (
-                <div className="space-y-2">
-                  <Label>Price</Label>
-                  <p className="font-medium">${shipment.price}</p>
+            {shipment?.priceGuides && shipment?.packageType !=="pallet" && (
+              <div>
+                <h3 className="mb-2 font-medium">{shipment?.packageType ==="container" ? "Container" : "Items List"}</h3>
+                <div className="rounded-lg border p-3 text-sm">
+                  <div className="grid grid-cols-2 gap-2">
+                    {(() => {
+                      const guides = typeof shipment.priceGuides === 'string' 
+                        ? JSON.parse(shipment.priceGuides) 
+                        : shipment.priceGuides;
+                      return guides.map((guide: any, index:number) => {
+                        // console.log(guide);
+                        return (
+                          <React.Fragment key={index}>
+                            <span className="text-muted-foreground capitalize">{guide.guideName} - {guide.guideNumber}:</span>
+                            <span>${guide.price}</span>
+                          </React.Fragment>
+                        )
+                      });
+                    })()}
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+
+            {shipment?.priceGuides && shipment?.packageType ==="pallet" && (
+              <div className="flex flex-col p-6 border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-blue-50 rounded-lg">
+                    <List className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <span className="text-lg font-semibold text-gray-900">Pallet Information</span>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {(() => {
+                    const guides = typeof shipment.priceGuides === 'string' 
+                      ? JSON.parse(shipment.priceGuides) 
+                      : shipment.priceGuides;
+                    return guides.map((guide: DimensionPallet, index: number) => (
+                      <div 
+                        key={guide.id} 
+                        className="flex justify-between items-start p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200"
+                      >
+                        <div className="flex flex-col gap-1">
+                          <span className="text-base font-semibold text-gray-900">Pallet {index + 1}</span>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 shadow-sm border border-blue-200">
+                              <div className="flex flex-col items-center">
+                                <span className="text-sm font-medium">
+                                  {guide.length} × {guide.width} × {guide.height} cm 
+                                </span>
+                                <span className="text-xs text-blue-600 mt-0.5">
+                                (L × W × H)
+                                </span>
+                              </div>
+                            </span>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-green-100 text-green-800">
+                              {guide.weight} kg
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -333,40 +403,56 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Pickup Address</Label>
-                {shipment.pickupAddress ? (
-                  <div className="space-y-1">
-                    <p className="font-medium">{shipment.pickupAddress.street}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {shipment.pickupAddress.city}, {shipment.pickupAddress.state}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {shipment.pickupAddress.country} {shipment.pickupAddress.zipCode}
-                    </p>
+            {(() => {
+              let pickupAddressObj = null;
+              let deliveryAddressObj = null;
+              try {
+                pickupAddressObj = typeof shipment.pickupAddress === 'string' ? JSON.parse(shipment.pickupAddress) : shipment.pickupAddress;
+              } catch (e) {
+                pickupAddressObj = null;
+              }
+              try {
+                deliveryAddressObj = typeof shipment.deliveryAddress === 'string' ? JSON.parse(shipment.deliveryAddress) : shipment.deliveryAddress;
+              } catch (e) {
+                deliveryAddressObj = null;
+              }
+              return (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Pickup Address</Label>
+                    {pickupAddressObj ? (
+                      <div className="space-y-1">
+                        <p className="font-medium">{pickupAddressObj.street}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {pickupAddressObj.city}, {pickupAddressObj.state}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {pickupAddressObj.country} {pickupAddressObj.zipCode}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">Not specified</p>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">Not specified</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Delivery Address</Label>
-                {shipment.deliveryAddress ? (
-                  <div className="space-y-1">
-                    <p className="font-medium">{shipment.deliveryAddress.street}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {shipment.deliveryAddress.city}, {shipment.deliveryAddress.state}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {shipment.deliveryAddress.country} {shipment.deliveryAddress.zipCode}
-                    </p>
+                  <div className="space-y-2">
+                    <Label>Delivery Address</Label>
+                    {deliveryAddressObj ? (
+                      <div className="space-y-1">
+                        <p className="font-medium">{deliveryAddressObj.street}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {deliveryAddressObj.city}, {deliveryAddressObj.state}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {deliveryAddressObj.country} {deliveryAddressObj.zipCode}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">Not specified</p>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">Not specified</p>
-                )}
-              </div>
-            </div>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -554,7 +640,7 @@ export default function ShipmentDetailsPage({ params }: { params: { id: string }
         </Card>
 
         {/* Package Images */}
-        {shipment.images && shipment.images.length > 0 && (
+        {shipment.images && Array.isArray(shipment.images) && shipment.images.length > 0 && (
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

@@ -4,13 +4,13 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Package, Maximize2, Box, AlertCircle, ArrowRight, ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import styles from './PackageDimension.module.css';
 import { useRouter } from 'next/navigation';
-import { updatePackageDimensions } from '@/lib/shipment';
-import { getPriceGuides } from '@/lib/shipments';
+import { getPriceGuides, updatePackageDimensions } from '@/lib/shipments';
 
 // Constants
 const MAX_DIMENSION = 1000;
 const MAX_WEIGHT = 40;
 
+// Types
 interface PackageDimensions {
   weight: string;
   length: string;
@@ -77,20 +77,26 @@ interface PriceGuide {
   price: number;
 }
 
+// Component: DimensionInput
 const DimensionInput: React.FC<{
   label: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  max?: number;
   icon: React.ReactNode;
   placeholder: string;
-  max?: number;
 }> = ({ label, value, onChange, error, icon, placeholder, max }) => {
   const [isFocused, setIsFocused] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numericValue = e.target.value.replace(/[^0-9.]/g, '');
     const finalValue = numericValue.replace(/(\..*)\./g, '$1');
+    
+    // if (max && parseFloat(finalValue) > max) {
+    //   return;
+    // }
+    
     onChange(finalValue);
   };
 
@@ -121,28 +127,37 @@ const DimensionInput: React.FC<{
   );
 };
 
-interface DimensionSet {
-  id: number;
-  length: string;
-  width: string;
-  height: string;
-  weight: string;
-}
-
-interface PackageDimensionProps {
-  onNext: () => void;
-  onBack: () => void;
-  onUpdate: (data: any) => void;
-  initialData?: any;
-}
-
-export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDimensionProps) {
+// Main Component
+export default function PackageDimension({ 
+  handleNextStep, 
+  handlePreviousStep 
+}: { 
+  handleNextStep: () => void, 
+  handlePreviousStep: () => void 
+}) {
   const router = useRouter();
+  const [token, setToken] = useState<string>("");
+  const [formData, setFormData] = useState<PackageDimensions>({
+    weight: '',
+    length: '',
+    width: '',
+    height: '',
+  });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [guides, setGuides] = useState<PriceGuide[]>([]);
+  const [extraguides, setExtraguides] = useState<PriceGuide[]>([]);
+  const [shipInfo, setShipInfo] = useState<Shipment>();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedGuides, setSelectedGuides] = useState<string[]>([]);
 
-  // Support for multiple dimension sets
-  const [dimensions, setDimensions] = useState<DimensionSet[]>([{
+  const [dimensions, setDimensions] = useState<Array<{
+    id: number;
+    length: string;
+    width: string;
+    height: string;
+    weight: string;
+  }>>([{
     id: Date.now(),
     length: '',
     width: '',
@@ -150,46 +165,36 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
     weight: ''
   }]);
 
-  // Add missing state
-  const [guides, setGuides] = useState<PriceGuide[]>([]);
-  const [extraguides, setExtraguides] = useState<PriceGuide[]>([]);
-  const [shipInfo, setShipInfo] = useState<Shipment>();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedGuides, setSelectedGuides] = useState<string[]>([]);
+  const MAX_DIMENSION = 1000; // Maximum dimension in cm
+  const MAX_WEIGHT = 1000; // Maximum weight in kg
 
-  // On mount, load from localStorage if available
+  const handleDimensionChange = (dimensionId: number, field: 'length' | 'width' | 'height' | 'weight', value: string) => {
+    setDimensions(prev => prev.map(dim => 
+      dim.id === dimensionId 
+        ? { ...dim, [field]: value }
+        : dim
+    ));
+  };
+
+
   useEffect(() => {
+    const accessToken = localStorage.getItem('token');
     const packageInfo = localStorage.getItem('packageInfo');
-    if (packageInfo) {
-      try {
-        const parsed = JSON.parse(packageInfo);
-        if (parsed && parsed.dimensions && typeof parsed.dimensions === 'object') {
-          setDimensions([{
-            id: Date.now(),
-            length: parsed.dimensions.length?.toString() || '',
-            width: parsed.dimensions.width?.toString() || '',
-            height: parsed.dimensions.height?.toString() || '',
-            weight: parsed.weight?.toString() || ''
-          }]);
-        }
-      } catch (e) {
-        // ignore
-      }
+    
+    if (accessToken) {
+      setToken(accessToken);
+      getPricings(accessToken);
+      setShipInfo(JSON.parse(packageInfo || '{}'));
     }
   }, []);
 
-  // Add useEffect to load shipment info and guides
-  useEffect(() => {
-    const packageInfo = localStorage.getItem('packageInfo');
-    if (packageInfo) {
-      setShipInfo(JSON.parse(packageInfo));
-    }
-    // If you have a getPriceGuides API, fetch guides here
-    // Example:
-    const token = localStorage.getItem('token');
-    if (token) getPricings(token);
-  }, []);
-
+  const toggleGuideSelection = (guideId: string) => {
+    setSelectedGuides(prev => 
+      prev.includes(guideId) 
+        ? prev.filter(id => id !== guideId)
+        : [...prev, guideId]
+    );
+  };
 
   const getPricings = async (token: string) => {
     try {
@@ -205,101 +210,75 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
     }
   };
 
-  const handleDimensionChange = (dimensionId: number, field: keyof Omit<DimensionSet, 'id'>, value: string) => {
-    setDimensions(prev =>
-      prev.map(dim =>
-        dim.id === dimensionId
-          ? { ...dim, [field]: value }
-          : dim
-      )
-    );
-    setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[field];
-      delete newErrors.general;
-      return newErrors;
-    });
-  };
-
-  const addDimensionSet = () => {
-    setDimensions(prev => [
-      ...prev,
-      {
-        id: Date.now(),
-        length: '',
-        width: '',
-        height: '',
-        weight: ''
-      }
-    ]);
-  };
-
-  const removeDimensionSet = (id: number) => {
-    setDimensions(prev => prev.filter(dim => dim.id !== id));
-  };
-
   const validateForm = useCallback((): boolean => {
     const newErrors: FormErrors = {};
-    dimensions.forEach((dimension, index) => {
-      (['weight', 'length', 'width', 'height'] as const).forEach(field => {
-        const value = dimension[field];
-        if (!value.trim()) {
-          newErrors[field] = `Please enter ${field} for dimension set ${index + 1}`;
-        } else if (isNaN(Number(value)) || Number(value) <= 0) {
-          newErrors[field] = `Please enter a valid ${field} for dimension set ${index + 1}`;
-        } else if (field === 'weight' && Number(value) > MAX_WEIGHT) {
-          newErrors[field] = `Weight cannot exceed ${MAX_WEIGHT}kg`;
-        } else if (field !== 'weight' && Number(value) > MAX_DIMENSION) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} cannot exceed ${MAX_DIMENSION}cm`;
-        }
+    const numericFields = ['weight', 'length', 'width', 'height'] as const;
+    
+    // Only validate dimensions if no guides are selected
+    if (selectedGuides.length === 0) {
+      // Validate dimensions array
+      dimensions.forEach((dimension, index) => {
+        const dimensionFields = ['length', 'width', 'height', 'weight'] as const;
+        dimensionFields.forEach(field => {
+          const value = dimension[field];
+          if (!value.trim()) {
+            newErrors[field] = `Please enter ${field} for dimension set ${index + 1}`;
+          } else if (isNaN(Number(value)) || Number(value) <= 0) {
+            newErrors[field] = `Please enter a valid ${field} for dimension set ${index + 1}`;
+          } else if (field === 'weight' && Number(value) > MAX_WEIGHT) {
+            newErrors[field] = `Weight cannot exceed ${MAX_WEIGHT}kg`;
+          } else if (field !== 'weight' && Number(value) > MAX_DIMENSION) {
+            newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} cannot exceed ${MAX_DIMENSION}cm`;
+          }
+        });
       });
-    });
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [dimensions]);
+  }, [dimensions, selectedGuides.length]);
+
+  const handleInputChange = (field: keyof PackageDimensions, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setErrors(prev => ({ ...prev, [field]: undefined, general: undefined }));
+  };
 
   const calculateVolume = useCallback((): string => {
-    // Sum all dimension sets
-    let total = 0;
-    dimensions.forEach(({ length, width, height }) => {
-      if (length && width && height) {
-        total += Number(length) * Number(width) * Number(height);
-      }
-    });
-    return total.toFixed(2);
+    // Calculate total volume from all dimension sets
+    const totalVolume = dimensions.reduce((sum, dimension) => {
+      const { length, width, height } = dimension;
+    if (length && width && height) {
+      const volume = Number(length) * Number(width) * Number(height);
+        return sum + volume;
+    }
+      return sum;
+    }, 0);
+
+    return totalVolume.toFixed(2);
   }, [dimensions]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // If no guides are selected, validate dimensions
-    if (!validateForm() && selectedGuides.length === 0) return;
+  const handleSubmit = async () => {
+    if (!validateForm() && selectedGuides.length==0) return;
 
     const packageInfo = localStorage.getItem('packageInfo');
     const shipment = JSON.parse(packageInfo || '{}');
 
     try {
       setIsLoading(true);
-      setErrors({});
-
       const packageId = shipment.id;
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.replace('/');
-        return;
-      }
-
+      
       let response;
 
-      // If user entered dimensions, use those
-      if (dimensions[0].weight !== "" && dimensions[0].length !== "") {
+      if(dimensions[0].weight !== "" && dimensions[0].length !== ""){
         // Calculate total weight
         const totalWeight = dimensions.reduce((sum, dim) => sum + (parseFloat(dim.weight) || 0), 0);
-
-        if (totalWeight > MAX_WEIGHT && shipment.serviceType !== 'airfreight') {
+        
+        if(totalWeight > MAX_WEIGHT && shipment.serviceType !== 'airfreight') {
           setErrors(prev => ({ ...prev, weight: `Total weight cannot exceed ${MAX_WEIGHT}kg` }));
           return;
         }
+
+        // const alldimensions = dimensions.map()
 
         response = await updatePackageDimensions(
           packageId,
@@ -308,10 +287,11 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
           },
           token
         );
-      } else {
-        // Use selected price guides
-        const selectedPriceGuides = selectedGuides.map(guideId => {
-          const guide = guides.find(g => g.id === guideId);
+      }else{
+        console.log(guides)
+        console.log(extraguides)
+        const selectedPriceGuides = [...selectedGuides, ...extraguides].map(guideId => {
+          const guide = [...guides, ...extraguides].find(g => g.id === guideId);
           if (!guide) return null;
           return {
             id: guide.id,
@@ -328,57 +308,55 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
           },
           token
         );
+        console.log(selectedGuides)
       }
-
+      
       if (response.success) {
         localStorage.setItem('packageInfo', JSON.stringify(response.data));
-        localStorage.setItem('currentStep', '3');
-        onNext();
+        localStorage.setItem('currentStep', '4');
+        handleNextStep();
       } else {
         throw new Error(response.message || 'Failed to update package dimensions');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error updating package dimensions:', error);
-      setErrors(prev => ({
-        ...prev,
-        general: error.message || 'An error occurred while updating package dimensions'
-      }));
+      setErrors(prev => ({ ...prev, general: 'An error occurred while updating package dimensions' }));
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Add toggleGuideSelection handler
-  const toggleGuideSelection = (guideId: string) => {
-    setSelectedGuides(prev =>
-      prev.includes(guideId)
-        ? prev.filter(id => id !== guideId)
-        : [...prev, guideId]
-    );
-  };
-
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <div className={styles.headerContent}>
-          <button
+        <div className="flex flex-row items-center gap-4">
+          <button 
             className={styles.backButton}
-            onClick={onBack}
-            type="button"
+            onClick={handlePreviousStep}
           >
             <ArrowLeft size={20} />
           </button>
-          <div className={styles.headerText}>
-            <h1>Package Dimensions</h1>
-            <p>Enter the dimensions and weight of your package</p>
-          </div>
+          <h1>Package Dimensions</h1>
         </div>
+        <button 
+          className={styles.cancelButton}
+          onClick={handlePreviousStep}
+        >
+          Cancel
+        </button>
       </header>
 
       <main className={styles.main}>
-        <form onSubmit={handleSubmit} className={styles.form}>
+        <div className={styles.content}>
+          <div className={styles.headerSection}>
+            <h2 className={styles.title}>Package Dimensions</h2>
+            <p className={styles.subtitle}>
+              Enter the dimensions and weight of your package
+            </p>
+          </div>
+          
           {errors.general && (
-            <div className={styles.errorAlert}>
+            <div className={styles.errorContainer}>
               <AlertCircle size={20} />
               <span>{errors.general}</span>
             </div>
@@ -402,8 +380,7 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                 <div className={styles.addNewItem}>
                   <button 
                     className={styles.addButton}
-                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                      e.stopPropagation();
+                    onClick={() => {
                       const itemName = prompt('Enter item name:');
                       if (itemName) {
                         const newGuide: PriceGuide = {
@@ -424,23 +401,17 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                 
                 <div className={styles.extraItemsSection}>
                   <h4 className={styles.extraItemsTitle}>Extra Items Added</h4>
-                  {extraguides.map((guide: PriceGuide) => (
+                  {extraguides.map((guide) => (
                     <div 
                       key={guide.id} 
                       className={`${styles.priceGuideItem} ${selectedGuides.includes(guide.id) ? styles.selected : ''} gap-3`}
-                      onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-                        e.stopPropagation();
-                        toggleGuideSelection(guide.id);
-                      }}
+                      onClick={() => toggleGuideSelection(guide.id)}
                     >
                       <div className={styles.checkbox}>
                         <input
                           type="checkbox"
                           checked={selectedGuides.includes(guide.id)}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            e.stopPropagation();
-                            toggleGuideSelection(guide.id);
-                          }}
+                          onChange={() => {}}
                         />
                       </div>
                       <div className={styles.guideInfo}>
@@ -451,7 +422,7 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                       <div className={styles.quantityControls}>
                         <button 
                           className={styles.quantityButton}
-                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                          onClick={(e) => {
                             e.stopPropagation();
                             const currentCount = selectedGuides.filter(id => id === guide.id).length;
                             if (currentCount > 0) {
@@ -469,9 +440,9 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                         </span>
                         <button 
                           className={styles.quantityButton}
-                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            toggleGuideSelection(guide.id);
+                            setSelectedGuides([...selectedGuides, guide.id]);
                           }}
                         >
                           +
@@ -485,26 +456,20 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                 <h4 className={styles.extraItemsTitle}>Item List</h4>
 
                 {guides
-                  .filter((guide: PriceGuide) => 
+                  .filter(guide => 
                     guide.guideName.toLowerCase().includes(searchTerm.toLowerCase())
                   )
-                  .map((guide: PriceGuide) => (
+                  .map((guide) => (
                     <div 
                       key={guide.id} 
                       className={`${styles.priceGuideItem} ${selectedGuides.includes(guide.id) ? styles.selected : ''} gap-3`}
-                      onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-                        e.stopPropagation();
-                        toggleGuideSelection(guide.id);
-                      }}
+                      onClick={() => toggleGuideSelection(guide.id)}
                     >
                       <div className={styles.checkbox}>
                         <input
                           type="checkbox"
                           checked={selectedGuides.includes(guide.id)}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                            e.stopPropagation();
-                            toggleGuideSelection(guide.id);
-                          }}
+                          onChange={() => {}}
                         />
                       </div>
                       <div className={styles.guideInfo}>
@@ -515,7 +480,7 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                       <div className={styles.quantityControls}>
                         <button 
                           className={styles.quantityButton}
-                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                          onClick={(e) => {
                             e.stopPropagation();
                             const currentCount = selectedGuides.filter(id => id === guide.id).length;
                             if (currentCount > 0) {
@@ -533,9 +498,9 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                         </span>
                         <button 
                           className={styles.quantityButton}
-                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            toggleGuideSelection(guide.id);
+                            setSelectedGuides([...selectedGuides, guide.id]);
                           }}
                         >
                           +
@@ -554,8 +519,7 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                   <div className={styles.addNewItem}>
                     <button 
                       className={styles.addButton}
-                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                        e.stopPropagation();
+                      onClick={() => {
                         const modal = document.createElement('div');
                         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
                         modal.innerHTML = `
@@ -615,23 +579,17 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                   
                   <div className={styles.extraItemsSection}>
                     <h4 className={styles.extraItemsTitle}>Added Items</h4>
-                    {extraguides.map((guide: PriceGuide) => (
+                    {extraguides.map((guide) => (
                       <div 
                         key={guide.id} 
                         className={`${styles.priceGuideItem} ${selectedGuides.includes(guide.id) ? styles.selected : ''} gap-3`}
-                        onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-                          e.stopPropagation();
-                          toggleGuideSelection(guide.id);
-                        }}
+                        onClick={() => toggleGuideSelection(guide.id)}
                       >
                         <div className={styles.checkbox}>
                           <input
                             type="checkbox"
                             checked={selectedGuides.includes(guide.id)}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              e.stopPropagation();
-                              toggleGuideSelection(guide.id);
-                            }}
+                            onChange={() => {}}
                           />
                         </div>
                         <div className={styles.guideInfo}>
@@ -642,7 +600,7 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                         <div className={styles.quantityControls}>
                           <button 
                             className={styles.quantityButton}
-                            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            onClick={(e) => {
                               e.stopPropagation();
                               const currentCount = selectedGuides.filter(id => id === guide.id).length;
                               if (currentCount > 0) {
@@ -660,9 +618,9 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                           </span>
                           <button 
                             className={styles.quantityButton}
-                            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              toggleGuideSelection(guide.id);
+                              setSelectedGuides([...selectedGuides, guide.id]);
                             }}
                           >
                             +
@@ -683,7 +641,7 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                   <div className={styles.addNewItem}>
                     <select 
                       className={styles.containerSelect}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                      onChange={(e) => {
                         const selectedOption = e.target.value;
                         if (selectedOption) {
                           const [size, type] = selectedOption.split('-');
@@ -710,23 +668,17 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
 
                   <div className={styles.extraItemsSection}>
                     <h4 className={styles.extraItemsTitle}>Selected Containers</h4>
-                    {extraguides.map((guide: PriceGuide) => (
+                    {extraguides.map((guide) => (
                       <div 
                         key={guide.id} 
                         className={`${styles.priceGuideItem} ${selectedGuides.includes(guide.id) ? styles.selected : ''} gap-3`}
-                        onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-                          e.stopPropagation();
-                          toggleGuideSelection(guide.id);
-                        }}
+                        onClick={() => toggleGuideSelection(guide.id)}
                       >
                         <div className={styles.checkbox}>
                           <input
                             type="checkbox"
                             checked={selectedGuides.includes(guide.id)}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              e.stopPropagation();
-                              toggleGuideSelection(guide.id);
-                            }}
+                            onChange={() => {}}
                           />
                         </div>
                         <div className={styles.guideInfo}>
@@ -737,7 +689,7 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                         <div className={styles.quantityControls}>
                           <button 
                             className={styles.quantityButton}
-                            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            onClick={(e) => {
                               e.stopPropagation();
                               const currentCount = selectedGuides.filter(id => id === guide.id).length;
                               if (currentCount > 0) {
@@ -755,9 +707,9 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                           </span>
                           <button 
                             className={styles.quantityButton}
-                            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              toggleGuideSelection(guide.id);
+                              setSelectedGuides([...selectedGuides, guide.id]);
                             }}
                           >
                             +
@@ -778,8 +730,7 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                   <div className={styles.addNewItem}>
                     <button 
                       className={styles.addButton}
-                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                        e.stopPropagation();
+                      onClick={() => {
                         const modal = document.createElement('div');
                         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
                         modal.innerHTML = `
@@ -839,23 +790,17 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                   
                   <div className={styles.extraItemsSection}>
                     <h4 className={styles.extraItemsTitle}>Added Items</h4>
-                    {extraguides.map((guide: PriceGuide) => (
+                    {extraguides.map((guide) => (
                       <div 
                         key={guide.id} 
                         className={`${styles.priceGuideItem} ${selectedGuides.includes(guide.id) ? styles.selected : ''} gap-3`}
-                        onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-                          e.stopPropagation();
-                          toggleGuideSelection(guide.id);
-                        }}
+                        onClick={() => toggleGuideSelection(guide.id)}
                       >
                         <div className={styles.checkbox}>
                           <input
                             type="checkbox"
                             checked={selectedGuides.includes(guide.id)}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                              e.stopPropagation();
-                              toggleGuideSelection(guide.id);
-                            }}
+                            onChange={() => {}}
                           />
                         </div>
                         <div className={styles.guideInfo}>
@@ -866,7 +811,7 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                         <div className={styles.quantityControls}>
                           <button 
                             className={styles.quantityButton}
-                            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            onClick={(e) => {
                               e.stopPropagation();
                               const currentCount = selectedGuides.filter(id => id === guide.id).length;
                               if (currentCount > 0) {
@@ -884,9 +829,9 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
                           </span>
                           <button 
                             className={styles.quantityButton}
-                            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              toggleGuideSelection(guide.id);
+                              setSelectedGuides([...selectedGuides, guide.id]);
                             }}
                           >
                             +
@@ -900,112 +845,134 @@ export default function PackageDimension({ onBack, onNext, onUpdate }: PackageDi
             </>
           ) :(
             <>
-          <div className={styles.section}>
-            <div className="flex justify-between items-center mb-4">
-              <h2>Dimensions (cm)</h2>
-              <button
-                type="button"
-                onClick={addDimensionSet}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <Plus size={20} className="mr-2" />
-                Add Dimension
-              </button>
-            </div>
-            {dimensions.map((dimension, index) => (
-              <div key={dimension.id} className="mb-6 last:mb-0">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-md font-medium text-gray-700">Dimension Set {index + 1}</h4>
-                  {dimensions.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                        e.stopPropagation();
-                        removeDimensionSet(dimension.id);
-                      }}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 size={20} />
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="space-y-6">
+                {/* Weight Section */}
+                {/* <div className="bg-white rounded-lg p-6 shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Weight</h3>
                   <DimensionInput
                     label="Weight (kg)"
-                    value={dimension.weight}
-                    onChange={(value) => handleDimensionChange(dimension.id, 'weight', value)}
+                    value={formData.weight}
+                    onChange={(value) => handleInputChange('weight', value)}
                     error={errors.weight}
                     icon={<Package size={20} />}
                     max={MAX_WEIGHT}
-                    placeholder="Enter weight"
+                    placeholder="Enter weight in kilograms"
                   />
-                  <DimensionInput
-                    label="Length"
-                    value={dimension.length}
-                    onChange={(value) => handleDimensionChange(dimension.id, 'length', value)}
-                    error={errors.length}
-                    icon={<Maximize2 size={20} />}
-                    placeholder="Enter length"
-                  />
-                  <DimensionInput
-                    label="Width"
-                    value={dimension.width}
-                    onChange={(value) => handleDimensionChange(dimension.id, 'width', value)}
-                    error={errors.width}
-                    icon={<Maximize2 size={20} />}
-                    placeholder="Enter width"
-                  />
-                  <DimensionInput
-                    label="Height"
-                    value={dimension.height}
-                    onChange={(value) => handleDimensionChange(dimension.id, 'height', value)}
-                    error={errors.height}
-                    icon={<Maximize2 size={20} />}
-                    placeholder="Enter height"
-                  />
+                </div> */}
+
+                {/* Dimensions Section */}
+                <div className="bg-white rounded-lg p-6 shadow-sm">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Dimensions (cm)</h3>
+                    <button
+                      onClick={() => {
+                        setDimensions([...dimensions, {
+                          id: Date.now(),
+                          length: '',
+                          width: '',
+                          height: '',
+                          weight: ''
+                        }]);
+                      }}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <Plus size={20} className="mr-2" />
+                      Add Dimension
+                    </button>
+                  </div>
+
+                  {dimensions.map((dimension, index) => (
+                    <div key={dimension.id} className="mb-6 last:mb-0">
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-md font-medium text-gray-700">Dimension Set {index + 1}</h4>
+                        {dimensions.length > 1 && (
+                          <button
+                            onClick={() => {
+                              const newDimensions = dimensions.filter(d => d.id !== dimension.id);
+                              setDimensions(newDimensions);
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <DimensionInput
+                          label="Weight (kg)"
+                          value={dimension.weight}
+                          onChange={(value) => handleDimensionChange(dimension.id, 'weight', value)}
+                          error={errors.weight}
+                          icon={<Package size={20} />}
+                          max={MAX_WEIGHT}
+                          placeholder="Enter weight"
+                        />
+                        <DimensionInput
+                          label="Length"
+                          value={dimension.length}
+                          onChange={(value) => handleDimensionChange(dimension.id, 'length', value)}
+                          error={errors.length}
+                          icon={<Maximize2 size={20} />}
+                          placeholder="Enter length"
+                        />
+                        <DimensionInput
+                          label="Width"
+                          value={dimension.width}
+                          onChange={(value) => handleDimensionChange(dimension.id, 'width', value)}
+                          error={errors.width}
+                          icon={<Maximize2 size={20} />}
+                          placeholder="Enter width"
+                        />
+                        <DimensionInput
+                          label="Height"
+                          value={dimension.height}
+                          onChange={(value) => handleDimensionChange(dimension.id, 'height', value)}
+                          error={errors.height}
+                          icon={<Maximize2 size={20} />}
+                          placeholder="Enter height"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Volume Section */}
+                <div className="bg-white rounded-lg p-6 shadow-sm">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Box size={20} className="text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Total Volume</h3>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900 mb-2">
+                    {calculateVolume()} cm³
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Calculated based on length × width × height
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className={styles.volumeSection}>
-            <div className={styles.volumeHeader}>
-              <div className={styles.volumeIcon}>
-                <Box size={20} />
-              </div>
-              <h3>Total Volume</h3>
-            </div>
-            <p className={styles.volumeValue}>
-              {calculateVolume()} cm³
-            </p>
-            <p className={styles.volumeSubtitle}>
-              Calculated based on length × width × height
-            </p>
-          </div>
-
-          </>
+            </>
           )}
+          {/* </main> */}
 
-          <div className={styles.footer}>
-            <button
-              type="submit"
-              className={`${styles.submitButton} ${isLoading ? styles.loading : ''}`}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <div className={styles.loading}>
-                  <div className={styles.spinner} />
-                  <span>Updating...</span>
-                </div>
-              ) : (
-                <div className={styles.buttonContent}>
-                  Continue
-                  <ArrowRight size={20} />
-                </div>
-              )}
-            </button>
-          </div>
-        </form>
+          
+
+          <button
+            className={`${styles.submitButton} ${isLoading ? styles.loading : ''}`}
+            onClick={handleSubmit}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              'Updating...'
+            ) : (
+              <div className='flex flex-row items-center gap-2'>
+                Continue
+                <ArrowRight size={20} />
+              </div>
+            )}
+          </button>
+        </div>
       </main>
     </div>
   );
